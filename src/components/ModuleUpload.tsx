@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Eye, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Eye, Edit2, ChevronDown, ChevronUp, Loader2, AlertCircle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { extractTextFromPDF } from '../services/pdfExtractor';
+import { processModulePDF } from '../services/aiModuleExtractor';
 
 interface Module {
   id: string;
@@ -31,75 +33,117 @@ interface ModuleUploadProps {
   onBack: () => void;
   modules: Module[];
   setModules: (modules: Module[]) => void;
+  apiKey?: string; // API Key wird von App.tsx übergeben
   [key: string]: any; // Accept any other props
 }
 
-export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUploadProps) {
+export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' }: ModuleUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [showReview, setShowReview] = useState(false);
   const [expandedExtraction, setExpandedExtraction] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
+
+    // API-Key Validierung
+    if (!apiKey || apiKey.trim() === '') {
+      setError('Bitte gib zuerst einen gültigen OpenAI API-Key ein.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
 
     const newModules: Module[] = [];
     const fileNames: string[] = [];
+    const totalFiles = files.length;
+    let processedFiles = 0;
 
-    // Simuliere das Hochladen und Parsen mehrerer PDFs
-    Array.from(files).forEach((file) => {
-      if (file.type === 'application/pdf') {
-        fileNames.push(file.name);
-        
-        const ects = Math.floor(Math.random() * 3) + 4; // 4-6 ECTS
-        const workload = ects * 30; // 120-180h
-        const assessments = generateMockAssessments();
-        
-        // Mock: Verschiedene Module mit verschiedenen Assessment-Typen
-        const mockModule: Module = {
-          id: Date.now().toString() + Math.random(),
-          name: file.name.replace('.pdf', '').replace(/_/g, ' '),
-          ects,
-          workload,
-          examDate: '',
-          pdfName: file.name,
-          assessments,
-          extractedContent: `MODULBESCHREIBUNG
-          
-Titel: ${file.name.replace('.pdf', '').replace(/_/g, ' ')}
-ECTS: ${ects}
-Workload: ${workload} Stunden
+    try {
+      // Verarbeite alle PDFs nacheinander
+      for (const file of Array.from(files)) {
+        if (file.type !== 'application/pdf') {
+          console.warn(`Datei ${file.name} ist keine PDF und wird übersprungen`);
+          continue;
+        }
 
-LERNZIELE:
-- Verständnis der theoretischen Grundlagen
-- Anwendung von Konzepten in praktischen Szenarien
-- Kritische Analyse komplexer Problemstellungen
+        processedFiles++;
+        setProcessingStatus(`Verarbeite ${file.name} (${processedFiles}/${totalFiles})...`);
 
-INHALTE:
-1. Einführung und Grundlagen
-2. Vertiefte Konzepte und Methoden
-3. Praktische Anwendungen
-4. Projektarbeit und Fallstudien
+        try {
+          // 1. PDF-Text extrahieren
+          setProcessingStatus(`Lese PDF ${processedFiles}/${totalFiles}: ${file.name}...`);
+          console.log('Starte Extraktion für:', file.name);
+          const pdfText = await extractTextFromPDF(file);
+          console.log('PDF Text extrahiert:', pdfText.substring(0, 200));
 
-LEISTUNGSNACHWEISE:
-${assessments.map(a => `- ${a.type} (${a.weight}%, ${a.format})`).join('\n')}
+          // 2. KI-Analyse durchführen
+          setProcessingStatus(`KI analysiert ${processedFiles}/${totalFiles}: ${file.name}...`);
+          console.log('Starte KI-Analyse...');
+          const result = await processModulePDF(file, pdfText, apiKey);
+          console.log('KI-Analyse abgeschlossen:', result.moduleData);
 
-LITERATUR:
-- Fachliteratur 1
-- Fachliteratur 2`,
-        };
-        
-        newModules.push(mockModule);
+          // 3. Modul-Objekt erstellen
+          const newModule: Module = {
+            id: Date.now().toString() + Math.random(),
+            name: result.moduleData.title,
+            ects: result.moduleData.ects,
+            workload: result.moduleData.workload,
+            examDate: '',
+            pdfName: file.name,
+            extractedContent: result.extractedContent,
+            assessments: result.moduleData.assessments.map((assessment, index) => ({
+              id: Date.now().toString() + index,
+              type: assessment.type,
+              weight: assessment.weight,
+              format: assessment.format,
+              deadline: ''
+            }))
+          };
+
+          newModules.push(newModule);
+          fileNames.push(file.name);
+          console.log('Modul erfolgreich erstellt:', newModule.name);
+        } catch (fileError) {
+          console.error(`Detaillierter Fehler beim Verarbeiten von ${file.name}:`, fileError);
+          const errorMessage = fileError instanceof Error ? fileError.message : 'Unbekannter Fehler';
+          setError(`Fehler bei ${file.name}: ${errorMessage}`);
+          // Fahre mit der nächsten Datei fort
+          continue;
+        }
       }
-    });
 
-    setModules([...modules, ...newModules]);
-    setUploadedFiles([...uploadedFiles, ...fileNames]);
-    
-    // Nach Upload direkt zur Review-Ansicht
-    if (newModules.length > 0) {
-      setTimeout(() => setShowReview(true), 500);
+      // Aktualisiere den Zustand mit allen neuen Modulen
+      if (newModules.length > 0) {
+        setModules([...modules, ...newModules]);
+        setUploadedFiles([...uploadedFiles, ...fileNames]);
+        
+        // Zur Review-Ansicht wechseln
+        setTimeout(() => {
+          setShowReview(true);
+          setIsProcessing(false);
+          setProcessingStatus('');
+        }, 500);
+      } else {
+        setIsProcessing(false);
+        setProcessingStatus('');
+        if (!error) {
+          setError('Keine PDFs konnten erfolgreich verarbeitet werden.');
+        }
+      }
+    } catch (err) {
+      console.error('Fehler beim Verarbeiten der Dateien:', err);
+      setError(err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten');
+      setIsProcessing(false);
+      setProcessingStatus('');
     }
+
+    // Reset file input
+    event.target.value = '';
   };
 
   const generateMockAssessments = (): Assessment[] => {
@@ -124,6 +168,10 @@ LITERATUR:
       weight: assessment.weight,
       deadline: '', // Muss vom User ausgefüllt werden
     }));
+  };
+
+  const dismissError = () => {
+    setError(null);
   };
 
   const updateModuleName = (moduleId: string, name: string) => {
@@ -190,6 +238,39 @@ LITERATUR:
             </p>
           </div>
 
+          {/* Error Alert */}
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="size-5 text-red-600 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-red-900 font-medium">Fehler beim Verarbeiten</p>
+                    <p className="text-sm text-red-700 mt-1">{error}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={dismissError}>
+                    ✕
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Processing Status */}
+          {isProcessing && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="size-5 text-blue-600 animate-spin" />
+                  <div>
+                    <p className="text-sm text-blue-900 font-medium">PDFs werden verarbeitet...</p>
+                    <p className="text-sm text-blue-700 mt-1">{processingStatus}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Upload Area */}
           <Card className="border-dashed border-2 border-gray-300 bg-gradient-to-br from-blue-50 to-purple-50">
             <CardContent className="flex flex-col items-center justify-center py-16">
@@ -204,13 +285,23 @@ LITERATUR:
                 multiple
                 onChange={handleFileUpload}
                 className="hidden"
+                disabled={isProcessing}
               />
               
               <label htmlFor="pdf-upload">
-                <Button size="lg" asChild>
+                <Button size="lg" asChild disabled={isProcessing}>
                   <span className="cursor-pointer">
-                    <Upload className="size-5 mr-2" />
-                    Modulbeschreibungen hochladen
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="size-5 mr-2 animate-spin" />
+                        Wird verarbeitet...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="size-5 mr-2" />
+                        Modulbeschreibungen hochladen
+                      </>
+                    )}
                   </span>
                 </Button>
               </label>
@@ -218,6 +309,11 @@ LITERATUR:
               <p className="text-sm text-gray-500 mt-4">
                 Du kannst mehrere PDFs gleichzeitig hochladen
               </p>
+              {!apiKey && (
+                <p className="text-sm text-red-600 mt-2 font-medium">
+                  ⚠️ Bitte gib zuerst einen OpenAI API-Key ein
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -254,13 +350,13 @@ LITERATUR:
 
           {/* Navigation */}
           <div className="flex justify-between pt-6">
-            <Button variant="outline" onClick={onBack}>
+            <Button variant="outline" onClick={onBack} disabled={isProcessing}>
               <ArrowLeft className="size-4 mr-2" />
               Zurück
             </Button>
             <Button 
               onClick={() => setShowReview(true)} 
-              disabled={modules.length === 0}
+              disabled={modules.length === 0 || isProcessing}
             >
               Weiter zur Überprüfung
               <ArrowRight className="size-4 ml-2" />
@@ -478,12 +574,22 @@ LITERATUR:
               multiple
               onChange={handleFileUpload}
               className="hidden"
+              disabled={isProcessing}
             />
             <label htmlFor="pdf-upload-more">
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild disabled={isProcessing}>
                 <span className="cursor-pointer">
-                  <Upload className="size-4 mr-2" />
-                  Weitere Module hochladen
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      Wird verarbeitet...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="size-4 mr-2" />
+                      Weitere Module hochladen
+                    </>
+                  )}
                 </span>
               </Button>
             </label>

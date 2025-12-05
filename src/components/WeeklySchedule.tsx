@@ -48,7 +48,8 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
 
     if (existingSlot) {
       // Remove block
-      setTimeSlots(timeSlots.filter(slot => slot.id !== existingSlot.id));
+      const newSlots = timeSlots.filter(slot => slot.id !== existingSlot.id);
+      setTimeSlots(newSlots);
     } else {
       // Add block
       const newSlot: TimeSlot = {
@@ -57,7 +58,8 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
         startTime,
         endTime,
       };
-      setTimeSlots([...timeSlots, newSlot]);
+      const newSlots = [...timeSlots, newSlot];
+      setTimeSlots(newSlots);
     }
   };
 
@@ -327,8 +329,12 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
             <ArrowLeft className="size-4 mr-2" />
             Zurück
           </Button>
-          <Button onClick={onNext} disabled={timeSlots.length === 0}>
-            Weiter
+          
+          <Button 
+            onClick={onNext} 
+            disabled={timeSlots.length === 0}
+          >
+            Weiter ({timeSlots.length} Slots)
             <ArrowRight className="size-4 ml-2" />
           </Button>
         </div>

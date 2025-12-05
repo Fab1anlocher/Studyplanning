@@ -5,10 +5,28 @@ import { ModuleUpload } from './components/ModuleUpload';
 import { WeeklySchedule } from './components/WeeklySchedule';
 import { StudyPlanGenerator } from './components/StudyPlanGenerator';
 
+interface TimeSlot {
+  id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+}
+
+interface Module {
+  id: string;
+  name: string;
+  ects: number;
+  workload: number;
+  examDate: string;
+  assessments: any[];
+  pdfName?: string;
+  extractedContent?: string;
+}
+
 export default function App() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [modules, setModules] = useState([]);
-  const [timeSlots, setTimeSlots] = useState([]);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [apiKey, setApiKey] = useState('');
 
   const steps = [
@@ -20,6 +38,14 @@ export default function App() {
   ];
 
   const CurrentComponent = steps[currentStep].component;
+
+  const handleNext = () => {
+    setCurrentStep(currentStep + 1);
+  };
+
+  const handleBack = () => {
+    setCurrentStep(currentStep - 1);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -47,8 +73,8 @@ export default function App() {
 
       <main className={currentStep >= 2 ? 'pt-24' : ''}>
         <CurrentComponent
-          onNext={() => setCurrentStep(currentStep + 1)}
-          onBack={() => setCurrentStep(currentStep - 1)}
+          onNext={handleNext}
+          onBack={handleBack}
           modules={modules}
           setModules={setModules}
           timeSlots={timeSlots}

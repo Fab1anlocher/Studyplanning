@@ -22,7 +22,7 @@ interface StudyPlanGeneratorProps {
   onBack: () => void;
   modules: any[];
   timeSlots: any[];
-  preferences: any;
+  apiKey?: string;
   [key: string]: any;
 }
 
