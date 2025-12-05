@@ -1,74 +1,98 @@
 import { Button } from './ui/button';
-import { BookOpen, Calendar, Sparkles, ArrowRight } from 'lucide-react';
+import { GraduationCap, Upload, Calendar, Brain, Sparkles, Target, Zap, ArrowRight } from 'lucide-react';
 
 interface WelcomePageProps {
   onNext: () => void;
+  [key: string]: any;
 }
 
 export function WelcomePage({ onNext }: WelcomePageProps) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-3xl w-full text-center space-y-8">
-        {/* Logo & Title */}
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-6 rounded-3xl shadow-2xl">
-              <BookOpen className="size-16 text-white" />
-            </div>
+    <div className="min-h-screen flex items-center justify-center py-12 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+      <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-6 rounded-3xl shadow-2xl">
+            <GraduationCap className="size-20 text-white" />
           </div>
-          <h1 className="text-5xl text-gray-900">StudyPlanner</h1>
-          <p className="text-xl text-gray-600">
-            Dein KI-gestützter Semesterplaner für ein erfolgreiches Studium
+        </div>
+
+        {/* Heading */}
+        <div className="space-y-4 mb-12">
+          <h1 className="text-gray-900 leading-tight">
+            StudyPlanner
+          </h1>
+          <p className="text-2xl text-gray-600 max-w-2xl mx-auto">
+            Plane dein Semester realistisch und effizient mit KI-Unterstützung
           </p>
         </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 py-8">
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-            <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="size-6 text-blue-600" />
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12 max-w-3xl mx-auto">
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 cursor-pointer">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-xl mb-4 inline-flex transition-transform duration-300 hover:rotate-6">
+              <Upload className="size-8 text-white" />
             </div>
             <h3 className="text-gray-900 mb-2">Module hochladen</h3>
             <p className="text-sm text-gray-600">
-              Lade deine Modulbeschreibungen hoch und wir extrahieren automatisch alle relevanten Daten
+              Lade deine Modulbeschreibungen als PDFs hoch und extrahiere automatisch alle Daten
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-            <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Calendar className="size-6 text-purple-600" />
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 cursor-pointer">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-xl mb-4 inline-flex transition-transform duration-300 hover:rotate-6">
+              <Calendar className="size-8 text-white" />
             </div>
-            <h3 className="text-gray-900 mb-2">Zeitfenster planen</h3>
+            <h3 className="text-gray-900 mb-2">Wochenplan erstellen</h3>
             <p className="text-sm text-gray-600">
-              Trage deine verfügbaren Lernzeiten ein und wir optimieren deinen Wochenplan
+              Markiere deine verfügbaren Lernzeiten in einem visuellen Grid
             </p>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-            <div className="bg-orange-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="size-6 text-orange-600" />
+          <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-105 cursor-pointer">
+            <div className="bg-gradient-to-br from-pink-500 to-pink-600 p-4 rounded-xl mb-4 inline-flex transition-transform duration-300 hover:rotate-6">
+              <Brain className="size-8 text-white" />
             </div>
             <h3 className="text-gray-900 mb-2">KI-Lernplan</h3>
             <p className="text-sm text-gray-600">
-              Erhalte einen realistischen, KI-optimierten Lernplan basierend auf deinen Daten
+              Die KI wählt automatisch die beste Lernmethode für jedes Modul
             </p>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="flex justify-center gap-8 mb-12">
+          <div className="flex items-center gap-2">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-2 rounded-lg">
+              <Sparkles className="size-5 text-white" />
+            </div>
+            <span className="text-gray-700">KI-gestützt</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-2 rounded-lg">
+              <Target className="size-5 text-white" />
+            </div>
+            <span className="text-gray-700">Realistisch</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="bg-gradient-to-br from-pink-500 to-pink-600 p-2 rounded-lg">
+              <Zap className="size-5 text-white" />
+            </div>
+            <span className="text-gray-700">Effizient</span>
           </div>
         </div>
 
         {/* CTA */}
-        <div className="space-y-4">
-          <Button
-            size="lg"
-            className="text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-            onClick={onNext}
-          >
-            Loslegen
-            <ArrowRight className="size-5 ml-2" />
-          </Button>
-          <p className="text-xs text-gray-500">
-            In nur 3 Schritten zu deinem persönlichen Semesterplan
-          </p>
-        </div>
+        <Button
+          size="lg"
+          onClick={onNext}
+          className="h-16 text-xl px-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-2xl hover:shadow-3xl transition-all"
+        >
+          Jetzt starten
+          <ArrowRight className="size-6 ml-2" />
+        </Button>
+
       </div>
     </div>
   );

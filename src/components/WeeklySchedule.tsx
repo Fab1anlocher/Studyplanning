@@ -15,6 +15,7 @@ interface WeeklyScheduleProps {
   onBack: () => void;
   timeSlots: TimeSlot[];
   setTimeSlots: (slots: TimeSlot[]) => void;
+  [key: string]: any; // Accept any other props
 }
 
 const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
@@ -304,6 +305,21 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
             </div>
           </CardContent>
         </Card>
+
+        {/* Validation Warning */}
+        {timeSlots.length === 0 && (
+          <Card className="bg-orange-50 border-orange-300">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <Info className="size-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700">
+                  <strong>Hinweis:</strong> Bitte wähle mindestens einen Zeitblock aus, um fortzufahren. 
+                  Du kannst auch eine Schnellauswahl-Vorlage verwenden.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Navigation */}
         <div className="flex justify-between pt-6">

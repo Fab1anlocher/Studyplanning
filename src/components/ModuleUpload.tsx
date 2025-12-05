@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2 } from 'lucide-react';
+import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Eye, Edit2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 interface Module {
   id: string;
@@ -14,6 +15,7 @@ interface Module {
   examDate: string;
   assessments: Assessment[];
   pdfName?: string;
+  extractedContent?: string; // Raw PDF content
 }
 
 interface Assessment {
@@ -29,11 +31,13 @@ interface ModuleUploadProps {
   onBack: () => void;
   modules: Module[];
   setModules: (modules: Module[]) => void;
+  [key: string]: any; // Accept any other props
 }
 
 export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [showReview, setShowReview] = useState(false);
+  const [expandedExtraction, setExpandedExtraction] = useState<string | null>(null);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -47,15 +51,42 @@ export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUplo
       if (file.type === 'application/pdf') {
         fileNames.push(file.name);
         
+        const ects = Math.floor(Math.random() * 3) + 4; // 4-6 ECTS
+        const workload = ects * 30; // 120-180h
+        const assessments = generateMockAssessments();
+        
         // Mock: Verschiedene Module mit verschiedenen Assessment-Typen
         const mockModule: Module = {
           id: Date.now().toString() + Math.random(),
           name: file.name.replace('.pdf', '').replace(/_/g, ' '),
-          ects: Math.floor(Math.random() * 3) + 4, // 4-6 ECTS
-          workload: (Math.floor(Math.random() * 3) + 4) * 30, // 120-180h
+          ects,
+          workload,
           examDate: '',
           pdfName: file.name,
-          assessments: generateMockAssessments(),
+          assessments,
+          extractedContent: `MODULBESCHREIBUNG
+          
+Titel: ${file.name.replace('.pdf', '').replace(/_/g, ' ')}
+ECTS: ${ects}
+Workload: ${workload} Stunden
+
+LERNZIELE:
+- Verständnis der theoretischen Grundlagen
+- Anwendung von Konzepten in praktischen Szenarien
+- Kritische Analyse komplexer Problemstellungen
+
+INHALTE:
+1. Einführung und Grundlagen
+2. Vertiefte Konzepte und Methoden
+3. Praktische Anwendungen
+4. Projektarbeit und Fallstudien
+
+LEISTUNGSNACHWEISE:
+${assessments.map(a => `- ${a.type} (${a.weight}%, ${a.format})`).join('\n')}
+
+LITERATUR:
+- Fachliteratur 1
+- Fachliteratur 2`,
         };
         
         newModules.push(mockModule);
@@ -111,6 +142,28 @@ export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUplo
       }
       return m;
     }));
+  };
+
+  const updateAssessmentWeight = (moduleId: string, assessmentId: string, weight: number) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        return {
+          ...m,
+          assessments: m.assessments.map(a => 
+            a.id === assessmentId ? { ...a, weight } : a
+          )
+        };
+      }
+      return m;
+    }));
+  };
+
+  const updateModuleECTS = (moduleId: string, ects: number) => {
+    setModules(modules.map(m => m.id === moduleId ? { ...m, ects } : m));
+  };
+
+  const updateModuleWorkload = (moduleId: string, workload: number) => {
+    setModules(modules.map(m => m.id === moduleId ? { ...m, workload } : m));
   };
 
   const deleteModule = (id: string) => {
@@ -281,8 +334,27 @@ export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUplo
                           <FileText className="size-3" />
                           {module.pdfName}
                         </div>
-                        <Badge variant="secondary">{module.ects} ECTS</Badge>
-                        <Badge variant="secondary">{module.workload}h</Badge>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">ECTS:</Label>
+                          <Input
+                            type="number"
+                            value={module.ects}
+                            onChange={(e) => updateModuleECTS(module.id, parseInt(e.target.value) || 0)}
+                            className="h-7 w-16 text-sm"
+                            min="1"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">Workload:</Label>
+                          <Input
+                            type="number"
+                            value={module.workload}
+                            onChange={(e) => updateModuleWorkload(module.id, parseInt(e.target.value) || 0)}
+                            className="h-7 w-20 text-sm"
+                            min="1"
+                          />
+                          <span className="text-xs">h</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -298,6 +370,30 @@ export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUplo
               
               <CardContent className="pt-6">
                 <div className="space-y-4">
+                  {/* PDF Extraction Viewer */}
+                  {module.extractedContent && (
+                    <Collapsible
+                      open={expandedExtraction === module.id}
+                      onOpenChange={() => setExpandedExtraction(expandedExtraction === module.id ? null : module.id)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" className="w-full mb-4">
+                          <Eye className="size-4 mr-2" />
+                          {expandedExtraction === module.id ? 'PDF-Extraktion ausblenden' : 'PDF-Extraktion anzeigen'}
+                          {expandedExtraction === module.id ? <ChevronUp className="size-4 ml-auto" /> : <ChevronDown className="size-4 ml-auto" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-4 font-mono text-sm max-h-64 overflow-y-auto">
+                          <pre className="whitespace-pre-wrap">{module.extractedContent}</pre>
+                        </div>
+                        <p className="text-xs text-gray-500 mb-4 text-center">
+                          Dies ist der aus dem PDF extrahierte Rohtext. Die Werte oben wurden automatisch aus diesem Content generiert.
+                        </p>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                  
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-gray-900">Leistungsnachweise</h4>
                     <span className="text-sm text-gray-600">
@@ -333,13 +429,23 @@ export function ModuleUpload({ onNext, onBack, modules, setModules }: ModuleUplo
                         </div>
                         
                         <div className="md:col-span-2">
-                          <Badge variant="secondary">{assessment.weight}%</Badge>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={assessment.weight}
+                              onChange={(e) => updateAssessmentWeight(module.id, assessment.id, parseInt(e.target.value) || 0)}
+                              className="h-8 w-16 text-sm"
+                              min="0"
+                              max="100"
+                            />
+                            <span className="text-sm text-gray-600">%</span>
+                          </div>
                         </div>
                         
                         <div className="md:col-span-6">
                           <div className="space-y-1">
                             <Label htmlFor={`deadline-${assessment.id}`} className="text-xs">
-                              Abgabedatum *
+                              Prüfungsdatum *
                             </Label>
                             <div className="flex items-center gap-2">
                               <Calendar className="size-4 text-gray-400" />
