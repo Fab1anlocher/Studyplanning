@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Plus, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { ArrowRight, ArrowLeft, Clock, Info } from 'lucide-react';
 
 interface TimeSlot {
   id: string;
@@ -13,170 +10,313 @@ interface TimeSlot {
   endTime: string;
 }
 
+interface WeeklyScheduleProps {
+  onNext: () => void;
+  onBack: () => void;
+  timeSlots: TimeSlot[];
+  setTimeSlots: (slots: TimeSlot[]) => void;
+}
+
 const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
-const HOURS = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+const DAY_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-export function WeeklySchedule() {
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
-    { id: '1', day: 'Montag', startTime: '09:00', endTime: '12:00' },
-    { id: '2', day: 'Mittwoch', startTime: '14:00', endTime: '17:00' },
-    { id: '3', day: 'Freitag', startTime: '10:00', endTime: '13:00' },
-  ]);
-  
-  const [newSlot, setNewSlot] = useState({
-    day: 'Montag',
-    startTime: '09:00',
-    endTime: '10:00',
-  });
-  
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+// Zeitblöcke von 6 Uhr bis 23 Uhr
+const TIME_BLOCKS = [
+  { start: '06:00', end: '08:00', label: '6-8' },
+  { start: '08:00', end: '10:00', label: '8-10' },
+  { start: '10:00', end: '12:00', label: '10-12' },
+  { start: '12:00', end: '14:00', label: '12-14' },
+  { start: '14:00', end: '16:00', label: '14-16' },
+  { start: '16:00', end: '18:00', label: '16-18' },
+  { start: '18:00', end: '20:00', label: '18-20' },
+  { start: '20:00', end: '22:00', label: '20-22' },
+  { start: '22:00', end: '24:00', label: '22-24' },
+];
 
-  const addTimeSlot = () => {
-    const slot: TimeSlot = {
-      id: Date.now().toString(),
-      ...newSlot,
-    };
-    setTimeSlots([...timeSlots, slot]);
-    setIsDialogOpen(false);
-    setNewSlot({ day: 'Montag', startTime: '09:00', endTime: '10:00' });
-  };
-
-  const removeTimeSlot = (id: string) => {
-    setTimeSlots(timeSlots.filter(slot => slot.id !== id));
-  };
-
-  const getSlotsByDay = (day: string) => {
-    return timeSlots.filter(slot => slot.day === day).sort((a, b) => 
-      a.startTime.localeCompare(b.startTime)
+export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: WeeklyScheduleProps) {
+  const isBlockSelected = (day: string, startTime: string, endTime: string) => {
+    return timeSlots.some(
+      slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
     );
   };
 
+  const toggleBlock = (day: string, startTime: string, endTime: string) => {
+    const existingSlot = timeSlots.find(
+      slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
+    );
+
+    if (existingSlot) {
+      // Remove block
+      setTimeSlots(timeSlots.filter(slot => slot.id !== existingSlot.id));
+    } else {
+      // Add block
+      const newSlot: TimeSlot = {
+        id: Date.now().toString() + Math.random(),
+        day,
+        startTime,
+        endTime,
+      };
+      setTimeSlots([...timeSlots, newSlot]);
+    }
+  };
+
+  const selectAllForDay = (day: string) => {
+    // Remove all blocks for this day first
+    const filtered = timeSlots.filter(slot => slot.day !== day);
+    
+    // Add all time blocks for this day
+    const newSlots = TIME_BLOCKS.map(block => ({
+      id: Date.now().toString() + Math.random(),
+      day,
+      startTime: block.start,
+      endTime: block.end,
+    }));
+    
+    setTimeSlots([...filtered, ...newSlots]);
+  };
+
+  const clearAllForDay = (day: string) => {
+    setTimeSlots(timeSlots.filter(slot => slot.day !== day));
+  };
+
+  const isDayFullySelected = (day: string) => {
+    return TIME_BLOCKS.every(block => 
+      isBlockSelected(day, block.start, block.end)
+    );
+  };
+
+  const getDayBlockCount = (day: string) => {
+    return timeSlots.filter(slot => slot.day === day).length;
+  };
+
+  const totalHours = timeSlots.length * 2; // Jeder Block = 2 Stunden
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-gray-900">Wochenplan</h2>
-          <p className="text-gray-600">Definiere deine verfügbaren Lernzeiten</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <h2 className="text-gray-900">Wochenplan erstellen</h2>
+          <p className="text-gray-600">
+            Klicke auf die Zeitblöcke, in denen du Zeit zum Lernen hast
+          </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="size-4 mr-2" />
-              Zeitfenster hinzufügen
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Neues Zeitfenster</DialogTitle>
-              <DialogDescription>
-                Füge ein verfügbares Zeitfenster für deine Lernsessions hinzu.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="day">Wochentag</Label>
-                <Select value={newSlot.day} onValueChange={(value) => setNewSlot({ ...newSlot, day: value })}>
-                  <SelectTrigger id="day">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DAYS.map(day => (
-                      <SelectItem key={day} value={day}>{day}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+        {/* Stats */}
+        <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center gap-8 text-center">
+              <div>
+                <div className="text-3xl text-gray-900">{timeSlots.length}</div>
+                <div className="text-sm text-gray-600">Zeitblöcke ausgewählt</div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start">Von</Label>
-                  <Select value={newSlot.startTime} onValueChange={(value) => setNewSlot({ ...newSlot, startTime: value })}>
-                    <SelectTrigger id="start">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map(hour => (
-                        <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="h-12 w-px bg-gray-300" />
+              <div>
+                <div className="text-3xl text-gray-900">{totalHours}h</div>
+                <div className="text-sm text-gray-600">Lernzeit pro Woche</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Interactive Grid */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div>
+                <CardTitle>Deine Woche</CardTitle>
+                <CardDescription>
+                  Klicke auf Zeitblöcke um sie auszuwählen oder abzuwählen
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Clock className="size-4" />
+                Jeder Block = 2 Stunden
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <div className="min-w-[800px]">
+                {/* Header with day names */}
+                <div className="grid grid-cols-8 gap-2 mb-4">
+                  <div className="text-sm text-gray-600">Zeit</div>
+                  {DAYS.map((day, index) => (
+                    <div key={day} className="text-center">
+                      <div className="text-gray-900 mb-1 hidden lg:block">{day}</div>
+                      <div className="text-gray-900 mb-1 lg:hidden">{DAY_SHORT[index]}</div>
+                      <div className="text-xs text-gray-600 mb-2">
+                        {getDayBlockCount(day)} Blöcke
+                      </div>
+                      {isDayFullySelected(day) ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => clearAllForDay(day)}
+                          className="w-full text-xs h-7"
+                        >
+                          Alle löschen
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => selectAllForDay(day)}
+                          className="w-full text-xs h-7"
+                        >
+                          Ganzer Tag
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
+
+                {/* Time blocks grid */}
                 <div className="space-y-2">
-                  <Label htmlFor="end">Bis</Label>
-                  <Select value={newSlot.endTime} onValueChange={(value) => setNewSlot({ ...newSlot, endTime: value })}>
-                    <SelectTrigger id="end">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map(hour => (
-                        <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {TIME_BLOCKS.map(block => (
+                    <div key={block.start} className="grid grid-cols-8 gap-2">
+                      <div className="text-sm text-gray-600 flex items-center justify-center py-4">
+                        {block.label}
+                      </div>
+                      {DAYS.map(day => {
+                        const selected = isBlockSelected(day, block.start, block.end);
+                        return (
+                          <button
+                            key={`${day}-${block.start}`}
+                            onClick={() => toggleBlock(day, block.start, block.end)}
+                            className={`
+                              py-4 rounded-lg border-2 transition-all duration-200 
+                              hover:scale-105 active:scale-95
+                              ${selected 
+                                ? 'bg-gradient-to-br from-blue-500 to-purple-500 border-blue-600 shadow-lg' 
+                                : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                              }
+                            `}
+                          >
+                            {selected && (
+                              <div className="text-white text-xs">✓</div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Abbrechen
+          </CardContent>
+        </Card>
+
+        {/* Quick Selection Presets */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Schnellauswahl</CardTitle>
+            <CardDescription>Wähle eine Vorlage und passe sie bei Bedarf an</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Button
+                variant="outline"
+                className="h-auto py-4"
+                onClick={() => {
+                  const weekdayMornings: TimeSlot[] = [];
+                  ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
+                    weekdayMornings.push({
+                      id: Date.now().toString() + Math.random(),
+                      day,
+                      startTime: '08:00',
+                      endTime: '10:00',
+                    });
+                  });
+                  setTimeSlots(weekdayMornings);
+                }}
+              >
+                <div className="text-left">
+                  <div>Morgens unter der Woche</div>
+                  <div className="text-xs text-gray-500">Mo-Fr, 8-10 Uhr</div>
+                </div>
               </Button>
-              <Button onClick={addTimeSlot}>Hinzufügen</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {DAYS.map(day => {
-          const daySlots = getSlotsByDay(day);
-          return (
-            <Card key={day}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-gray-900">{day}</CardTitle>
-                <CardDescription>
-                  {daySlots.length === 0 ? 'Keine Zeitfenster' : `${daySlots.length} Zeitfenster`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {daySlots.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400 text-sm">
-                    Noch keine Zeitfenster definiert
-                  </div>
-                ) : (
-                  daySlots.map(slot => (
-                    <div
-                      key={slot.id}
-                      className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="size-2 bg-blue-600 rounded-full" />
-                        <span className="text-gray-900">
-                          {slot.startTime} - {slot.endTime}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeTimeSlot(slot.id)}
-                      >
-                        <X className="size-4 text-gray-500" />
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              <Button
+                variant="outline"
+                className="h-auto py-4"
+                onClick={() => {
+                  const afternoons: TimeSlot[] = [];
+                  ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
+                    afternoons.push({
+                      id: Date.now().toString() + Math.random(),
+                      day,
+                      startTime: '14:00',
+                      endTime: '16:00',
+                    });
+                    afternoons.push({
+                      id: Date.now().toString() + Math.random(),
+                      day,
+                      startTime: '16:00',
+                      endTime: '18:00',
+                    });
+                  });
+                  setTimeSlots(afternoons);
+                }}
+              >
+                <div className="text-left">
+                  <div>Nachmittags</div>
+                  <div className="text-xs text-gray-500">Mo-Fr, 14-18 Uhr</div>
+                </div>
+              </Button>
 
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="pt-6">
-          <p className="text-sm text-gray-700">
-            <strong>Tipp:</strong> Diese Zeitfenster werden vom KI-Planer genutzt, um deine Lernsessions optimal zu verteilen. 
-            Je mehr Flexibilität du angibst, desto besser kann der Plan angepasst werden.
-          </p>
-        </CardContent>
-      </Card>
+              <Button
+                variant="outline"
+                className="h-auto py-4"
+                onClick={() => {
+                  const weekends: TimeSlot[] = [];
+                  ['Samstag', 'Sonntag'].forEach(day => {
+                    TIME_BLOCKS.slice(2, 7).forEach(block => {
+                      weekends.push({
+                        id: Date.now().toString() + Math.random(),
+                        day,
+                        startTime: block.start,
+                        endTime: block.end,
+                      });
+                    });
+                  });
+                  setTimeSlots(weekends);
+                }}
+              >
+                <div className="text-left">
+                  <div>Wochenende intensiv</div>
+                  <div className="text-xs text-gray-500">Sa-So, 10-20 Uhr</div>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Info Tip */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <Info className="size-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-700">
+                <strong>Tipp:</strong> Wähle realistische Zeitfenster aus. Die KI plant deine Lernsessions 
+                automatisch in diese Zeitblöcke ein und berücksichtigt dabei Deadlines und Prioritäten.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Navigation */}
+        <div className="flex justify-between pt-6">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="size-4 mr-2" />
+            Zurück
+          </Button>
+          <Button onClick={onNext} disabled={timeSlots.length === 0}>
+            Weiter
+            <ArrowRight className="size-4 ml-2" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
