@@ -1,23 +1,35 @@
+/**
+ * PDF Text Extraction Service
+ * 
+ * Dieser Service extrahiert Text aus PDF-Dateien mithilfe von PDF.js.
+ * Der extrahierte Text wird dann von der KI analysiert, um Moduldaten zu extrahieren.
+ */
+
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// PDF.js Worker konfigurieren
+// PDF.js Worker konfigurieren - erforderlich für Performance und Stabilität
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 /**
  * Extrahiert den vollständigen Text aus einer PDF-Datei
- * @param file - Die hochgeladene PDF-Datei
+ * 
+ * Verwendet PDF.js um den Text aus allen Seiten zu extrahieren.
+ * Der Text wird dann für die KI-Analyse verwendet.
+ * 
+ * @param file - Die hochgeladene PDF-Datei (File object vom Browser)
  * @returns Der extrahierte Text aus allen Seiten der PDF
+ * @throws Error wenn die PDF nicht gelesen werden kann
  */
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
     console.log('Starte PDF-Extraktion für:', file.name);
     
-    // Datei in ArrayBuffer konvertieren
+    // Datei in ArrayBuffer konvertieren - erforderlich für PDF.js
     const arrayBuffer = await file.arrayBuffer();
     console.log('ArrayBuffer erstellt, Größe:', arrayBuffer.byteLength);
     
-    // PDF laden
+    // PDF laden - erstellt ein PDF-Dokument-Objekt
     const loadingTask = pdfjsLib.getDocument({
       data: arrayBuffer
     });
@@ -28,6 +40,7 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     let fullText = '';
     
     // Alle Seiten durchgehen und Text extrahieren
+    // Wichtig: Seiten werden sequenziell verarbeitet um Speicher zu sparen
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
