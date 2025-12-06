@@ -1,5 +1,16 @@
+/**
+ * KI-basierte Modul-Datenextraktion
+ * 
+ * Dieser Service verwendet die OpenAI API um strukturierte Daten aus 
+ * PDF-Modulbeschreibungen zu extrahieren. Die KI analysiert den Text
+ * und gibt ein strukturiertes JSON-Objekt mit Moduldaten zurück.
+ */
+
 import OpenAI from 'openai';
 
+/**
+ * Strukturierte Modul-Daten die von der KI extrahiert werden
+ */
 export interface ExtractedModuleData {
   title: string;
   ects: number;
@@ -13,9 +24,14 @@ export interface ExtractedModuleData {
 
 /**
  * Extrahiert strukturierte Daten aus dem PDF-Text mithilfe von OpenAI
- * @param pdfText - Der extrahierte Text aus der PDF
- * @param apiKey - Der OpenAI API-Schlüssel
- * @returns Strukturierte Moduldaten
+ * 
+ * Diese Funktion sendet den PDF-Text an die OpenAI API (GPT-4o-mini)
+ * und lässt die KI die relevanten Informationen extrahieren.
+ * 
+ * @param pdfText - Der extrahierte Text aus der PDF-Datei
+ * @param apiKey - Der OpenAI API-Schlüssel des Benutzers
+ * @returns Strukturierte Moduldaten (Titel, ECTS, Workload, Assessments)
+ * @throws Error wenn der API-Key ungültig ist oder die KI-Anfrage fehlschlägt
  */
 export async function extractModuleDataWithAI(
   pdfText: string,
@@ -25,9 +41,12 @@ export async function extractModuleDataWithAI(
     throw new Error('API-Schlüssel fehlt');
   }
 
+  // OpenAI Client initialisieren
+  // WICHTIG: dangerouslyAllowBrowser sollte nur in Development verwendet werden
+  // In Production sollte dies über einen Backend-Service laufen
   const openai = new OpenAI({
     apiKey: apiKey,
-    dangerouslyAllowBrowser: true // Nur für Development! In Production sollte dies über einen Backend-Service laufen
+    dangerouslyAllowBrowser: true
   });
 
   const systemPrompt = `Du bist ein KI-Assistent, der Modulbeschreibungen von Hochschulen analysiert.

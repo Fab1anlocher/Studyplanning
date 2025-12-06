@@ -21,7 +21,8 @@ interface WeeklyScheduleProps {
 const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 const DAY_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-// Zeitblöcke von 6 Uhr bis 23 Uhr
+// Zeitblöcke von 6 Uhr bis 23 Uhr (2-Stunden-Blöcke)
+// Jeder Block repräsentiert eine 2-stündige Lerneinheit
 const TIME_BLOCKS = [
   { start: '06:00', end: '08:00', label: '6-8' },
   { start: '08:00', end: '10:00', label: '8-10' },
@@ -31,18 +32,30 @@ const TIME_BLOCKS = [
   { start: '16:00', end: '18:00', label: '16-18' },
   { start: '18:00', end: '20:00', label: '18-20' },
   { start: '20:00', end: '22:00', label: '20-22' },
-  { start: '22:00', end: '24:00', label: '22-24' },
+  { start: '22:00', end: '23:59', label: '22-24' }, // Verwende 23:59 statt 24:00 für korrektes Zeitformat
 ];
 
 export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: WeeklyScheduleProps) {
   console.log('[WeeklySchedule] Component rendered with', timeSlots.length, 'time slots');
   
+  /**
+   * Prüft, ob ein bestimmter Zeitblock bereits ausgewählt ist
+   * @param day - Wochentag (z.B. "Montag")
+   * @param startTime - Startzeit im Format "HH:MM"
+   * @param endTime - Endzeit im Format "HH:MM"
+   * @returns true wenn der Block ausgewählt ist, sonst false
+   */
   const isBlockSelected = useCallback((day: string, startTime: string, endTime: string) => {
     return timeSlots.some(
       slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
     );
   }, [timeSlots]);
 
+  /**
+   * Togglet einen Zeitblock (fügt hinzu oder entfernt)
+   * Wenn der Block bereits ausgewählt ist, wird er entfernt
+   * Wenn er nicht ausgewählt ist, wird er hinzugefügt
+   */
   const toggleBlock = useCallback((day: string, startTime: string, endTime: string) => {
     console.log('[WeeklySchedule] Toggling block:', { day, startTime, endTime });
     
@@ -69,6 +82,11 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
     }
   }, [timeSlots, setTimeSlots]);
 
+  /**
+   * Wählt alle Zeitblöcke für einen bestimmten Tag aus
+   * Entfernt zuerst alle bestehenden Blöcke für diesen Tag,
+   * dann fügt alle verfügbaren Zeitblöcke hinzu
+   */
   const selectAllForDay = useCallback((day: string) => {
     console.log('[WeeklySchedule] Selecting all blocks for', day);
     // Remove all blocks for this day first

@@ -5,6 +5,7 @@ node_modules/
 
 # Testing
 coverage/
+test-weekly-schedule.html
 
 # Production build
 build/
@@ -33,3 +34,7 @@ lerna-debug.log*
 
 # Vite
 .vite/
+
+# Temporary files
+/tmp/
+*.tmp

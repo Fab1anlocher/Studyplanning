@@ -52,6 +52,40 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      // Chunk-Splitting für bessere Performance und kleinere Bundle-Größen
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // React und React-DOM in eigenen Chunk
+            'react-vendor': ['react', 'react-dom'],
+            // PDF.js Worker separat (sehr groß)
+            'pdf-worker': ['pdfjs-dist'],
+            // OpenAI Bibliothek separat
+            'openai-vendor': ['openai'],
+            // Radix UI Components zusammenfassen
+            'radix-ui': [
+              '@radix-ui/react-accordion',
+              '@radix-ui/react-alert-dialog',
+              '@radix-ui/react-avatar',
+              '@radix-ui/react-checkbox',
+              '@radix-ui/react-collapsible',
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-label',
+              '@radix-ui/react-popover',
+              '@radix-ui/react-select',
+              '@radix-ui/react-separator',
+              '@radix-ui/react-slider',
+              '@radix-ui/react-slot',
+              '@radix-ui/react-switch',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-tooltip',
+            ],
+          },
+        },
+      },
+      // Chunk-Size-Warnung auf 1000kb erhöhen (PDF worker ist groß)
+      chunkSizeWarningLimit: 1000,
     },
     server: {
       port: 3000,
