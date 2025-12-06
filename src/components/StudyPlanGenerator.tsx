@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2 } from 'lucide-react';
@@ -26,12 +26,16 @@ interface StudyPlanGeneratorProps {
   [key: string]: any;
 }
 
+// Constants for calendar display
+const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const DEFAULT_MONTH = '2024-12-01'; // TODO: Make this dynamic based on current date/semester
+
 export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApiKey = '' }: StudyPlanGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [planGenerated, setPlanGenerated] = useState(false);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
 
-  const generatePlan = () => {
+  const generatePlan = useCallback(() => {
     setIsGenerating(true);
     
     // Hier würde der echte API-Call passieren:
@@ -120,10 +124,10 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
       setPlanGenerated(true);
       setIsGenerating(false);
     }, 2500);
-  };
+  }, [modules]);
 
-  // Kalender-Logik
-  const getWeeksInMonth = (year: number, month: number) => {
+  // Kalender-Logik - Memoized to prevent recalculation on every render
+  const getWeeksInMonth = useCallback((year: number, month: number) => {
     const weeks = [];
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -154,16 +158,18 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
     }
     
     return weeks;
-  };
+  }, []); // No dependencies - pure function
 
-  const getSessionsForDate = (date: Date) => {
+  const getSessionsForDate = useCallback((date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
     return studySessions.filter(session => session.date === dateStr);
-  };
+  }, [studySessions]); // Only recreate when studySessions changes
 
-  const currentMonth = new Date('2024-12-01');
-  const weeks = getWeeksInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
-  const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const currentMonth = useMemo(() => new Date(DEFAULT_MONTH), []);
+  const weeks = useMemo(
+    () => getWeeksInMonth(currentMonth.getFullYear(), currentMonth.getMonth()),
+    [getWeeksInMonth, currentMonth]
+  );
 
   if (!planGenerated) {
     return (
@@ -326,7 +332,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           <CardContent>
             {/* Week days header */}
             <div className="grid grid-cols-7 gap-2 mb-2">
-              {weekDays.map(day => (
+              {WEEK_DAYS.map(day => (
                 <div key={day} className="text-center text-sm text-gray-600 py-2">
                   {day}
                 </div>
