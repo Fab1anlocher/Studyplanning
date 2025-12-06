@@ -27,6 +27,8 @@ interface StudyPlanGeneratorProps {
 }
 
 export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApiKey = '' }: StudyPlanGeneratorProps) {
+  console.log('[StudyPlanGenerator] Component rendered - Optimized with memoization');
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [planGenerated, setPlanGenerated] = useState(false);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
