@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { ArrowRight, ArrowLeft, Clock, Info } from 'lucide-react';
@@ -35,13 +35,17 @@ const TIME_BLOCKS = [
 ];
 
 export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: WeeklyScheduleProps) {
-  const isBlockSelected = (day: string, startTime: string, endTime: string) => {
+  console.log('[WeeklySchedule] Component rendered with', timeSlots.length, 'time slots');
+  
+  const isBlockSelected = useCallback((day: string, startTime: string, endTime: string) => {
     return timeSlots.some(
       slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
     );
-  };
+  }, [timeSlots]);
 
-  const toggleBlock = (day: string, startTime: string, endTime: string) => {
+  const toggleBlock = useCallback((day: string, startTime: string, endTime: string) => {
+    console.log('[WeeklySchedule] Toggling block:', { day, startTime, endTime });
+    
     const existingSlot = timeSlots.find(
       slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
     );
@@ -49,6 +53,7 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
     if (existingSlot) {
       // Remove block
       const newSlots = timeSlots.filter(slot => slot.id !== existingSlot.id);
+      console.log('[WeeklySchedule] Removing block. New count:', newSlots.length);
       setTimeSlots(newSlots);
     } else {
       // Add block
@@ -59,11 +64,13 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
         endTime,
       };
       const newSlots = [...timeSlots, newSlot];
+      console.log('[WeeklySchedule] Adding block. New count:', newSlots.length);
       setTimeSlots(newSlots);
     }
-  };
+  }, [timeSlots, setTimeSlots]);
 
-  const selectAllForDay = (day: string) => {
+  const selectAllForDay = useCallback((day: string) => {
+    console.log('[WeeklySchedule] Selecting all blocks for', day);
     // Remove all blocks for this day first
     const filtered = timeSlots.filter(slot => slot.day !== day);
     
@@ -75,22 +82,95 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
       endTime: block.end,
     }));
     
-    setTimeSlots([...filtered, ...newSlots]);
-  };
+    const finalSlots = [...filtered, ...newSlots];
+    console.log('[WeeklySchedule] New total slots:', finalSlots.length);
+    setTimeSlots(finalSlots);
+  }, [timeSlots, setTimeSlots]);
 
-  const clearAllForDay = (day: string) => {
-    setTimeSlots(timeSlots.filter(slot => slot.day !== day));
-  };
+  const clearAllForDay = useCallback((day: string) => {
+    console.log('[WeeklySchedule] Clearing all blocks for', day);
+    const newSlots = timeSlots.filter(slot => slot.day !== day);
+    console.log('[WeeklySchedule] New total slots:', newSlots.length);
+    setTimeSlots(newSlots);
+  }, [timeSlots, setTimeSlots]);
 
-  const isDayFullySelected = (day: string) => {
+  const isDayFullySelected = useCallback((day: string) => {
     return TIME_BLOCKS.every(block => 
       isBlockSelected(day, block.start, block.end)
     );
-  };
+  }, [isBlockSelected]);
 
-  const getDayBlockCount = (day: string) => {
+  const getDayBlockCount = useCallback((day: string) => {
     return timeSlots.filter(slot => slot.day === day).length;
-  };
+  }, [timeSlots]);
+
+  const handleNextClick = useCallback(() => {
+    console.log('[WeeklySchedule] Next button clicked. TimeSlots:', timeSlots.length);
+    if (timeSlots.length === 0) {
+      console.warn('[WeeklySchedule] Cannot proceed - no time slots selected');
+      return;
+    }
+    console.log('[WeeklySchedule] Calling onNext handler');
+    onNext();
+  }, [timeSlots, onNext]);
+
+  const handleBackClick = useCallback(() => {
+    console.log('[WeeklySchedule] Back button clicked');
+    onBack();
+  }, [onBack]);
+
+  const selectWeekdayMornings = useCallback(() => {
+    console.log('[WeeklySchedule] Selecting weekday mornings preset');
+    const weekdayMornings: TimeSlot[] = [];
+    ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
+      weekdayMornings.push({
+        id: Date.now().toString() + Math.random(),
+        day,
+        startTime: '08:00',
+        endTime: '10:00',
+      });
+    });
+    console.log('[WeeklySchedule] Setting', weekdayMornings.length, 'slots');
+    setTimeSlots(weekdayMornings);
+  }, [setTimeSlots]);
+
+  const selectAfternoons = useCallback(() => {
+    console.log('[WeeklySchedule] Selecting afternoons preset');
+    const afternoons: TimeSlot[] = [];
+    ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
+      afternoons.push({
+        id: Date.now().toString() + Math.random(),
+        day,
+        startTime: '14:00',
+        endTime: '16:00',
+      });
+      afternoons.push({
+        id: Date.now().toString() + Math.random(),
+        day,
+        startTime: '16:00',
+        endTime: '18:00',
+      });
+    });
+    console.log('[WeeklySchedule] Setting', afternoons.length, 'slots');
+    setTimeSlots(afternoons);
+  }, [setTimeSlots]);
+
+  const selectWeekendIntensive = useCallback(() => {
+    console.log('[WeeklySchedule] Selecting weekend intensive preset');
+    const weekends: TimeSlot[] = [];
+    ['Samstag', 'Sonntag'].forEach(day => {
+      TIME_BLOCKS.slice(2, 7).forEach(block => {
+        weekends.push({
+          id: Date.now().toString() + Math.random(),
+          day,
+          startTime: block.start,
+          endTime: block.end,
+        });
+      });
+    });
+    console.log('[WeeklySchedule] Setting', weekends.length, 'slots');
+    setTimeSlots(weekends);
+  }, [setTimeSlots]);
 
   const totalHours = timeSlots.length * 2; // Jeder Block = 2 Stunden
 
@@ -221,18 +301,7 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
               <Button
                 variant="outline"
                 className="h-auto py-4"
-                onClick={() => {
-                  const weekdayMornings: TimeSlot[] = [];
-                  ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
-                    weekdayMornings.push({
-                      id: Date.now().toString() + Math.random(),
-                      day,
-                      startTime: '08:00',
-                      endTime: '10:00',
-                    });
-                  });
-                  setTimeSlots(weekdayMornings);
-                }}
+                onClick={selectWeekdayMornings}
               >
                 <div className="text-left">
                   <div>Morgens unter der Woche</div>
@@ -243,24 +312,7 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
               <Button
                 variant="outline"
                 className="h-auto py-4"
-                onClick={() => {
-                  const afternoons: TimeSlot[] = [];
-                  ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
-                    afternoons.push({
-                      id: Date.now().toString() + Math.random(),
-                      day,
-                      startTime: '14:00',
-                      endTime: '16:00',
-                    });
-                    afternoons.push({
-                      id: Date.now().toString() + Math.random(),
-                      day,
-                      startTime: '16:00',
-                      endTime: '18:00',
-                    });
-                  });
-                  setTimeSlots(afternoons);
-                }}
+                onClick={selectAfternoons}
               >
                 <div className="text-left">
                   <div>Nachmittags</div>
@@ -271,20 +323,7 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
               <Button
                 variant="outline"
                 className="h-auto py-4"
-                onClick={() => {
-                  const weekends: TimeSlot[] = [];
-                  ['Samstag', 'Sonntag'].forEach(day => {
-                    TIME_BLOCKS.slice(2, 7).forEach(block => {
-                      weekends.push({
-                        id: Date.now().toString() + Math.random(),
-                        day,
-                        startTime: block.start,
-                        endTime: block.end,
-                      });
-                    });
-                  });
-                  setTimeSlots(weekends);
-                }}
+                onClick={selectWeekendIntensive}
               >
                 <div className="text-left">
                   <div>Wochenende intensiv</div>
@@ -325,13 +364,13 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
 
         {/* Navigation */}
         <div className="flex justify-between pt-6">
-          <Button variant="outline" onClick={onBack}>
+          <Button variant="outline" onClick={handleBackClick}>
             <ArrowLeft className="size-4 mr-2" />
             Zurück
           </Button>
           
           <Button 
-            onClick={onNext} 
+            onClick={handleNextClick} 
             disabled={timeSlots.length === 0}
           >
             Weiter ({timeSlots.length} Slots)
