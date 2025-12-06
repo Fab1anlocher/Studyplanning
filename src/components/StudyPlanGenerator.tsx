@@ -26,9 +26,11 @@ interface StudyPlanGeneratorProps {
   [key: string]: any;
 }
 
+// Constants for calendar display
+const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const DEFAULT_MONTH = '2024-12-01'; // TODO: Make this dynamic based on current date/semester
+
 export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApiKey = '' }: StudyPlanGeneratorProps) {
-  console.log('[StudyPlanGenerator] Component rendered - Optimized with memoization');
-  
   const [isGenerating, setIsGenerating] = useState(false);
   const [planGenerated, setPlanGenerated] = useState(false);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
@@ -163,12 +165,11 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
     return studySessions.filter(session => session.date === dateStr);
   }, [studySessions]); // Only recreate when studySessions changes
 
-  const currentMonth = useMemo(() => new Date('2024-12-01'), []);
+  const currentMonth = useMemo(() => new Date(DEFAULT_MONTH), []);
   const weeks = useMemo(
     () => getWeeksInMonth(currentMonth.getFullYear(), currentMonth.getMonth()),
     [getWeeksInMonth, currentMonth]
   );
-  const weekDays = useMemo(() => ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], []);
 
   if (!planGenerated) {
     return (
@@ -331,7 +332,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           <CardContent>
             {/* Week days header */}
             <div className="grid grid-cols-7 gap-2 mb-2">
-              {weekDays.map(day => (
+              {WEEK_DAYS.map(day => (
                 <div key={day} className="text-center text-sm text-gray-600 py-2">
                   {day}
                 </div>
