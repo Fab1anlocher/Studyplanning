@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { ArrowRight, ArrowLeft, Clock, Info } from 'lucide-react';
@@ -35,92 +35,157 @@ const TIME_BLOCKS = [
   { start: '22:00', end: '23:59', label: '22-24' }, // Verwende 23:59 statt 24:00 für korrektes Zeitformat
 ];
 
+/**
+ * Helper function to create a unique key for a time slot
+ * This is used for O(1) lookup performance instead of O(n) array iteration
+ */
+function getSlotKey(day: string, startTime: string, endTime: string): string {
+  return `${day}:${startTime}-${endTime}`;
+}
+
+/**
+ * Memoized TimeBlock component to prevent unnecessary re-renders
+ */
+const TimeBlock = memo(({ 
+  day, 
+  block, 
+  selected, 
+  onToggle 
+}: { 
+  day: string; 
+  block: { start: string; end: string; label: string }; 
+  selected: boolean; 
+  onToggle: () => void;
+}) => {
+  return (
+    <button
+      onClick={onToggle}
+      className={`
+        py-4 rounded-lg border-2 transition-all duration-200 
+        hover:scale-105 active:scale-95
+        ${selected 
+          ? 'bg-gradient-to-br from-blue-500 to-purple-500 border-blue-600 shadow-lg' 
+          : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+        }
+      `}
+    >
+      {selected && (
+        <div className="text-white text-xs">✓</div>
+      )}
+    </button>
+  );
+});
+
 export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: WeeklyScheduleProps) {
   console.log('[WeeklySchedule] Component rendered with', timeSlots.length, 'time slots');
   
   /**
-   * Prüft, ob ein bestimmter Zeitblock bereits ausgewählt ist
-   * @param day - Wochentag (z.B. "Montag")
-   * @param startTime - Startzeit im Format "HH:MM"
-   * @param endTime - Endzeit im Format "HH:MM"
-   * @returns true wenn der Block ausgewählt ist, sonst false
+   * Create a Set of selected slot keys for O(1) lookup instead of O(n) iteration
+   * This dramatically improves performance when checking if a block is selected
    */
-  const isBlockSelected = useCallback((day: string, startTime: string, endTime: string) => {
-    return timeSlots.some(
-      slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
-    );
+  const selectedSlotsSet = useMemo(() => {
+    const set = new Set<string>();
+    timeSlots.forEach(slot => {
+      set.add(getSlotKey(slot.day, slot.startTime, slot.endTime));
+    });
+    return set;
   }, [timeSlots]);
 
   /**
+   * Create a Map of day -> slot count for O(1) lookup
+   */
+  const dayBlockCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    DAYS.forEach(day => counts.set(day, 0));
+    timeSlots.forEach(slot => {
+      counts.set(slot.day, (counts.get(slot.day) || 0) + 1);
+    });
+    return counts;
+  }, [timeSlots]);
+
+  /**
+   * Prüft, ob ein bestimmter Zeitblock bereits ausgewählt ist
+   * Now uses O(1) Set lookup instead of O(n) array iteration
+   */
+  const isBlockSelected = useCallback((day: string, startTime: string, endTime: string) => {
+    return selectedSlotsSet.has(getSlotKey(day, startTime, endTime));
+  }, [selectedSlotsSet]);
+
+  /**
    * Togglet einen Zeitblock (fügt hinzu oder entfernt)
-   * Wenn der Block bereits ausgewählt ist, wird er entfernt
-   * Wenn er nicht ausgewählt ist, wird er hinzugefügt
+   * Optimized to use functional updates to avoid dependency on timeSlots
    */
   const toggleBlock = useCallback((day: string, startTime: string, endTime: string) => {
     console.log('[WeeklySchedule] Toggling block:', { day, startTime, endTime });
     
-    const existingSlot = timeSlots.find(
-      slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
-    );
+    setTimeSlots(currentSlots => {
+      const existingSlot = currentSlots.find(
+        slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
+      );
 
-    if (existingSlot) {
-      // Remove block
-      const newSlots = timeSlots.filter(slot => slot.id !== existingSlot.id);
-      console.log('[WeeklySchedule] Removing block. New count:', newSlots.length);
-      setTimeSlots(newSlots);
-    } else {
-      // Add block
-      const newSlot: TimeSlot = {
-        id: Date.now().toString() + Math.random(),
-        day,
-        startTime,
-        endTime,
-      };
-      const newSlots = [...timeSlots, newSlot];
-      console.log('[WeeklySchedule] Adding block. New count:', newSlots.length);
-      setTimeSlots(newSlots);
-    }
-  }, [timeSlots, setTimeSlots]);
+      if (existingSlot) {
+        // Remove block
+        const newSlots = currentSlots.filter(slot => slot.id !== existingSlot.id);
+        console.log('[WeeklySchedule] Removing block. New count:', newSlots.length);
+        return newSlots;
+      } else {
+        // Add block
+        const newSlot: TimeSlot = {
+          id: Date.now().toString() + Math.random(),
+          day,
+          startTime,
+          endTime,
+        };
+        const newSlots = [...currentSlots, newSlot];
+        console.log('[WeeklySchedule] Adding block. New count:', newSlots.length);
+        return newSlots;
+      }
+    });
+  }, [setTimeSlots]);
 
   /**
    * Wählt alle Zeitblöcke für einen bestimmten Tag aus
-   * Entfernt zuerst alle bestehenden Blöcke für diesen Tag,
-   * dann fügt alle verfügbaren Zeitblöcke hinzu
+   * Optimized with functional update
    */
   const selectAllForDay = useCallback((day: string) => {
     console.log('[WeeklySchedule] Selecting all blocks for', day);
-    // Remove all blocks for this day first
-    const filtered = timeSlots.filter(slot => slot.day !== day);
     
-    // Add all time blocks for this day
-    const newSlots = TIME_BLOCKS.map(block => ({
-      id: Date.now().toString() + Math.random(),
-      day,
-      startTime: block.start,
-      endTime: block.end,
-    }));
-    
-    const finalSlots = [...filtered, ...newSlots];
-    console.log('[WeeklySchedule] New total slots:', finalSlots.length);
-    setTimeSlots(finalSlots);
-  }, [timeSlots, setTimeSlots]);
+    setTimeSlots(currentSlots => {
+      // Remove all blocks for this day first
+      const filtered = currentSlots.filter(slot => slot.day !== day);
+      
+      // Add all time blocks for this day
+      const newSlots = TIME_BLOCKS.map(block => ({
+        id: Date.now().toString() + Math.random(),
+        day,
+        startTime: block.start,
+        endTime: block.end,
+      }));
+      
+      const finalSlots = [...filtered, ...newSlots];
+      console.log('[WeeklySchedule] New total slots:', finalSlots.length);
+      return finalSlots;
+    });
+  }, [setTimeSlots]);
 
   const clearAllForDay = useCallback((day: string) => {
     console.log('[WeeklySchedule] Clearing all blocks for', day);
-    const newSlots = timeSlots.filter(slot => slot.day !== day);
-    console.log('[WeeklySchedule] New total slots:', newSlots.length);
-    setTimeSlots(newSlots);
-  }, [timeSlots, setTimeSlots]);
+    
+    setTimeSlots(currentSlots => {
+      const newSlots = currentSlots.filter(slot => slot.day !== day);
+      console.log('[WeeklySchedule] New total slots:', newSlots.length);
+      return newSlots;
+    });
+  }, [setTimeSlots]);
 
   const isDayFullySelected = useCallback((day: string) => {
-    return TIME_BLOCKS.every(block => 
-      isBlockSelected(day, block.start, block.end)
-    );
-  }, [isBlockSelected]);
+    const count = dayBlockCounts.get(day) || 0;
+    return count === TIME_BLOCKS.length;
+  }, [dayBlockCounts]);
 
   const getDayBlockCount = useCallback((day: string) => {
-    return timeSlots.filter(slot => slot.day === day).length;
-  }, [timeSlots]);
+    return dayBlockCounts.get(day) || 0;
+  }, [dayBlockCounts]);
 
   const handleNextClick = useCallback(() => {
     console.log('[WeeklySchedule] Next button clicked. TimeSlots:', timeSlots.length);
@@ -130,7 +195,7 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
     }
     console.log('[WeeklySchedule] Calling onNext handler');
     onNext();
-  }, [timeSlots, onNext]);
+  }, [timeSlots.length, onNext]);
 
   const handleBackClick = useCallback(() => {
     console.log('[WeeklySchedule] Back button clicked');
@@ -282,22 +347,13 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
                       {DAYS.map(day => {
                         const selected = isBlockSelected(day, block.start, block.end);
                         return (
-                          <button
+                          <TimeBlock
                             key={`${day}-${block.start}`}
-                            onClick={() => toggleBlock(day, block.start, block.end)}
-                            className={`
-                              py-4 rounded-lg border-2 transition-all duration-200 
-                              hover:scale-105 active:scale-95
-                              ${selected 
-                                ? 'bg-gradient-to-br from-blue-500 to-purple-500 border-blue-600 shadow-lg' 
-                                : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                              }
-                            `}
-                          >
-                            {selected && (
-                              <div className="text-white text-xs">✓</div>
-                            )}
-                          </button>
+                            day={day}
+                            block={block}
+                            selected={selected}
+                            onToggle={() => toggleBlock(day, block.start, block.end)}
+                          />
                         );
                       })}
                     </div>
