@@ -152,21 +152,24 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
     const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
     currentDate.setDate(firstDay.getDate() + diff);
     
-    while (currentDate <= lastDay || currentWeek.length > 0) {
+    while (currentDate <= lastDay) {
+      currentWeek.push(new Date(currentDate));
+      
       if (currentWeek.length === 7) {
         weeks.push(currentWeek);
         currentWeek = [];
       }
       
-      currentWeek.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + 1);
-      
-      if (currentDate > lastDay && currentWeek.length > 0) {
-        while (currentWeek.length < 7) {
-          currentWeek.push(new Date(currentDate));
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
+    }
+    
+    // Add remaining days to complete the last week
+    if (currentWeek.length > 0) {
+      while (currentWeek.length < 7) {
+        currentWeek.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
       }
+      weeks.push(currentWeek);
     }
     
     return weeks;
