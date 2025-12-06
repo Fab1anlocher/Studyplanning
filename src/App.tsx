@@ -23,6 +23,18 @@ interface Module {
   extractedContent?: string;
 }
 
+// Props interface for step components
+interface StepComponentProps {
+  onNext: () => void;
+  onBack: () => void;
+  modules: Module[];
+  setModules: (modules: Module[]) => void;
+  timeSlots: TimeSlot[];
+  setTimeSlots: (slots: TimeSlot[]) => void;
+  apiKey: string;
+  setApiKey: (key: string) => void;
+}
+
 export default function App() {
   const [currentStep, setCurrentStep] = useState(0);
   const [modules, setModules] = useState<Module[]>([]);
@@ -40,11 +52,33 @@ export default function App() {
   const CurrentComponent = steps[currentStep].component;
 
   const handleNext = () => {
-    setCurrentStep(currentStep + 1);
+    console.log('[Navigation] Navigating to next step from:', currentStep);
+    console.log('[Navigation] Current state:', {
+      modules: modules.length,
+      timeSlots: timeSlots.length,
+      apiKey: apiKey ? 'set' : 'not set'
+    });
+    
+    // Validation before navigation
+    if (currentStep === 3 && timeSlots.length === 0) {
+      console.error('[Navigation] Cannot proceed: No time slots selected');
+      return;
+    }
+    
+    setCurrentStep(prev => {
+      const next = prev + 1;
+      console.log('[Navigation] Moving from step', prev, 'to step', next);
+      return next;
+    });
   };
 
   const handleBack = () => {
-    setCurrentStep(currentStep - 1);
+    console.log('[Navigation] Navigating to previous step from:', currentStep);
+    setCurrentStep(prev => {
+      const next = prev - 1;
+      console.log('[Navigation] Moving from step', prev, 'to step', next);
+      return next;
+    });
   };
 
   return (
