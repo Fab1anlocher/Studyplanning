@@ -36,10 +36,14 @@ interface StepComponentProps {
 }
 
 export default function App() {
-  const [currentStep, setCurrentStep] = useState(0);
+  // For testing: Start at step 4 (StudyPlanGenerator) if ?test=true in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const isTestMode = urlParams.get('test') === 'true';
+  
+  const [currentStep, setCurrentStep] = useState(isTestMode ? 4 : 0);
   const [modules, setModules] = useState<Module[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(isTestMode ? 'sk-test-123' : '');
 
   const steps = [
     { component: WelcomePage, title: 'Willkommen' },

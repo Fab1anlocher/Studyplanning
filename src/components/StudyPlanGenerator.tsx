@@ -31,6 +31,18 @@ const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const DEFAULT_MONTH = '2024-12-01'; // TODO: Make this dynamic based on current date/semester
 
 export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApiKey = '' }: StudyPlanGeneratorProps) {
+  // Use test data if no real data provided (for testing purposes)
+  const actualModules = modules && modules.length > 0 ? modules : [
+    { id: '1', name: 'Software Engineering', ects: 6 },
+    { id: '2', name: 'Datenbanken', ects: 4 },
+    { id: '3', name: 'Web Development', ects: 5 }
+  ];
+  const actualTimeSlots = timeSlots && timeSlots.length > 0 ? timeSlots : [
+    { id: '1', day: 'Montag', startTime: '09:00', endTime: '11:00' },
+    { id: '2', day: 'Mittwoch', startTime: '14:00', endTime: '16:00' },
+    { id: '3', day: 'Freitag', startTime: '10:00', endTime: '12:00' }
+  ];
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [planGenerated, setPlanGenerated] = useState(false);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
@@ -69,7 +81,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           date: '2024-12-09',
           startTime: '09:00',
           endTime: '11:00',
-          module: modules[0]?.name || 'Software Engineering',
+          module: actualModules[0]?.name || 'Software Engineering',
           topic: 'Design Patterns einführen',
           description: 'Singleton und Factory Pattern durcharbeiten',
         },
@@ -78,7 +90,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           date: '2024-12-09',
           startTime: '14:00',
           endTime: '16:00',
-          module: modules[1]?.name || 'Datenbanken',
+          module: actualModules[1]?.name || 'Datenbanken',
           topic: 'SQL Grundlagen',
           description: 'SELECT, JOIN, WHERE Statements üben',
         },
@@ -87,7 +99,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           date: '2024-12-11',
           startTime: '14:00',
           endTime: '17:00',
-          module: modules[0]?.name || 'Software Engineering',
+          module: actualModules[0]?.name || 'Software Engineering',
           topic: 'Semesterarbeit Kapitel 1',
           description: 'Einleitung und Problemstellung schreiben',
         },
@@ -96,7 +108,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           date: '2024-12-13',
           startTime: '10:00',
           endTime: '12:00',
-          module: modules[1]?.name || 'Datenbanken',
+          module: actualModules[1]?.name || 'Datenbanken',
           topic: 'Normalisierung',
           description: '1NF bis 3NF Beispiele durcharbeiten',
         },
@@ -105,7 +117,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           date: '2024-12-16',
           startTime: '09:00',
           endTime: '11:00',
-          module: modules[0]?.name || 'Software Engineering',
+          module: actualModules[0]?.name || 'Software Engineering',
           topic: 'Observer Pattern',
           description: 'Implementierung üben, Code-Beispiele',
         },
@@ -114,7 +126,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           date: '2024-12-18',
           startTime: '14:00',
           endTime: '16:00',
-          module: modules[1]?.name || 'Datenbanken',
+          module: actualModules[1]?.name || 'Datenbanken',
           topic: 'Projekt-Datenbank Design',
           description: 'ER-Diagramm erstellen und validieren',
         },
@@ -124,7 +136,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
       setPlanGenerated(true);
       setIsGenerating(false);
     }, 2500);
-  }, [modules]);
+  }, [actualModules]);
 
   // Kalender-Logik - Memoized to prevent recalculation on every render
   const getWeeksInMonth = useCallback((year: number, month: number) => {
@@ -210,22 +222,22 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
             <CardContent className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Module hochgeladen:</span>
-                <span className="text-gray-900">{modules.length}</span>
+                <span className="text-gray-900">{actualModules.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Zeitfenster definiert:</span>
-                <span className="text-gray-900">{timeSlots.length}</span>
+                <span className="text-gray-900">{actualTimeSlots.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Gesamt ECTS:</span>
                 <span className="text-gray-900">
-                  {modules.reduce((sum, m) => sum + (m.ects || 0), 0)}
+                  {actualModules.reduce((sum, m) => sum + (m.ects || 0), 0)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Wöchentliche Lernzeit:</span>
                 <span className="text-gray-900">
-                  {timeSlots.length * 2}h
+                  {actualTimeSlots.length * 2}h
                 </span>
               </div>
             </CardContent>
@@ -302,7 +314,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
               <div>
                 <h3 className="text-xl mb-1">Plan erfolgreich erstellt!</h3>
                 <p className="text-white/90">
-                  {studySessions.length} Lernsessions wurden für dich geplant • {modules.length} Module • {timeSlots.length * 2}h pro Woche
+                  {studySessions.length} Lernsessions wurden für dich geplant • {actualModules.length} Module • {actualTimeSlots.length * 2}h pro Woche
                 </p>
               </div>
             </div>
@@ -318,7 +330,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
                 {currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
               </CardTitle>
               <div className="flex items-center gap-4 text-sm">
-                {modules.slice(0, 3).map((module, index) => (
+                {actualModules.slice(0, 3).map((module, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <div className={`size-3 rounded-full ${
                       index === 0 ? 'bg-blue-500' : index === 1 ? 'bg-purple-500' : 'bg-pink-500'
@@ -370,7 +382,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
                         </div>
                         <div className="space-y-1">
                           {sessions.map((session, idx) => {
-                            const moduleIndex = modules.findIndex(m => m.name === session.module);
+                            const moduleIndex = actualModules.findIndex(m => m.name === session.module);
                             const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500'];
                             const bgColor = colors[moduleIndex % colors.length];
                             
@@ -407,7 +419,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           </CardHeader>
           <CardContent className="space-y-2">
             {studySessions.map((session) => {
-              const moduleIndex = modules.findIndex(m => m.name === session.module);
+              const moduleIndex = actualModules.findIndex(m => m.name === session.module);
               const colors = ['from-blue-500 to-blue-600', 'from-purple-500 to-purple-600', 'from-pink-500 to-pink-600'];
               const gradient = colors[moduleIndex % colors.length];
               
