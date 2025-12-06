@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyPlanGenerator Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+        }
+        iframe {
+            width: 100%;
+            height: 100vh;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Navigate to the app and inject test data
+        window.addEventListener('DOMContentLoaded', () => {
+            // We'll use the dev server and navigate through localStorage
+            localStorage.setItem('testMode', 'true');
+            localStorage.setItem('currentStep', '4');
+            localStorage.setItem('modules', JSON.stringify([
+                {
+                    id: '1',
+                    name: 'Software Engineering',
+                    ects: 6,
+                    workload: 180,
+                    examDate: '2024-12-20',
+                    assessments: [
+                        { id: '1', type: 'Projekt', weight: 60, format: 'Semesterarbeit', deadline: '2024-12-15' }
+                    ]
+                },
+                {
+                    id: '2',
+                    name: 'Datenbanken',
+                    ects: 4,
+                    workload: 120,
+                    examDate: '2024-12-18',
+                    assessments: []
+                }
+            ]));
+            localStorage.setItem('timeSlots', JSON.stringify([
+                { id: '1', day: 'Montag', startTime: '09:00', endTime: '11:00' },
+                { id: '2', day: 'Mittwoch', startTime: '14:00', endTime: '16:00' },
+                { id: '3', day: 'Freitag', startTime: '10:00', endTime: '12:00' }
+            ]));
+            
+            window.location.href = 'http://localhost:3000';
+        });
+    </script>
+</body>
+</html>
