@@ -157,7 +157,10 @@ WICHTIGE REGELN:
 - Starte mit Grundlagen aus den Inhalten, baue darauf auf
 - Vermeide Überlastung: Max. 2-3h konzentriertes Lernen pro Session
 
-Gib NUR das JSON-Array zurück, ohne Formatierung oder Kommentare.`;
+Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
+{
+  "sessions": [ ...array of session objects... ]
+}`;
 
       const userPrompt = `Erstelle einen optimalen Lernplan mit folgenden Daten:\n\n${JSON.stringify(planningData, null, 2)}`;
       
@@ -179,7 +182,11 @@ Gib NUR das JSON-Array zurück, ohne Formatierung oder Kommentare.`;
       }
       
       const parsedResponse = JSON.parse(content);
-      const sessions: StudySession[] = parsedResponse.sessions || parsedResponse;
+      const sessions: StudySession[] = parsedResponse.sessions || [];
+      
+      if (!Array.isArray(sessions) || sessions.length === 0) {
+        throw new Error('Keine Sessions von der KI erhalten');
+      }
       
       console.log('KI-generierte Sessions:', sessions);
       
