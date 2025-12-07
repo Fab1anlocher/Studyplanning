@@ -36,6 +36,130 @@ interface StudyPlanGeneratorProps {
 const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const DEFAULT_MONTH = '2024-12-01'; // TODO: Make this dynamic based on current date/semester
 
+// Learning Method Explanations
+const LEARNING_METHODS: Record<string, { title: string; description: string; tips: string[] }> = {
+  'Deep Work': {
+    title: 'Deep Work',
+    description: 'Konzentrierte, ablenkungsfreie Arbeit an kognitiv anspruchsvollen Aufgaben. Optimal für komplexe Projekte und kreative Arbeit.',
+    tips: [
+      'Schalte alle Benachrichtigungen aus',
+      'Plane mindestens 2-4 Stunden ein',
+      'Arbeite in einem ruhigen Umfeld',
+      'Mache nur alle 90 Minuten eine Pause'
+    ]
+  },
+  'Pomodoro': {
+    title: 'Pomodoro-Technik',
+    description: 'Arbeite in 25-Minuten-Intervallen mit 5-Minuten-Pausen. Nach 4 Pomodoros eine längere Pause (15-30 Min).',
+    tips: [
+      '25 Minuten fokussierte Arbeit',
+      '5 Minuten Pause (aufstehen, bewegen)',
+      'Nach 4 Zyklen: 15-30 Min Pause',
+      'Ideal für Programmierung und Übungen'
+    ]
+  },
+  'Spaced Repetition': {
+    title: 'Spaced Repetition',
+    description: 'Wiederhole Lernstoff in zunehmend größeren Abständen für optimales Langzeitgedächtnis.',
+    tips: [
+      'Erste Wiederholung: nach 1 Tag',
+      'Zweite Wiederholung: nach 3 Tagen',
+      'Dritte Wiederholung: nach 7 Tagen',
+      'Nutze Karteikarten oder Apps wie Anki'
+    ]
+  },
+  'Active Recall': {
+    title: 'Active Recall',
+    description: 'Aktives Abrufen von Wissen ohne Hilfsmittel. Teste dich selbst statt passiv zu lesen.',
+    tips: [
+      'Schließe Bücher und Notizen',
+      'Schreibe alles auf, was du weißt',
+      'Vergleiche mit dem Original',
+      'Konzentriere dich auf Lücken'
+    ]
+  },
+  'Feynman Technik': {
+    title: 'Feynman-Technik',
+    description: 'Erkläre ein Konzept in einfachen Worten, als würdest du es einem Kind beibringen.',
+    tips: [
+      'Wähle ein Konzept',
+      'Erkläre es in einfachen Worten',
+      'Identifiziere Wissenslücken',
+      'Vereinfache und verwende Analogien'
+    ]
+  },
+  'Interleaving': {
+    title: 'Interleaving',
+    description: 'Wechsle zwischen verschiedenen Themen/Modulen statt alles auf einmal zu lernen.',
+    tips: [
+      'Mische verschiedene Themen',
+      'Verbessert Problemlösungsfähigkeit',
+      'Verhindert Langeweile',
+      'Fördert Transfer von Wissen'
+    ]
+  },
+  'Practice Testing': {
+    title: 'Practice Testing',
+    description: 'Übe mit echten oder simulierten Prüfungen. Die beste Vorbereitung auf Prüfungen.',
+    tips: [
+      'Nutze alte Prüfungen',
+      'Simuliere Prüfungsbedingungen',
+      'Zeitlimit einhalten',
+      'Analysiere Fehler gründlich'
+    ]
+  }
+};
+
+// Excel export helper
+const exportToExcel = (sessions: StudySession[], modules: any[]) => {
+  // Create CSV content (Excel-compatible)
+  let csvContent = 'data:text/csv;charset=utf-8,';
+  
+  // Headers
+  csvContent += 'Datum,Wochentag,Startzeit,Endzeit,Modul,Thema,Beschreibung,Lernmethode,Inhalte,Kompetenzen,Lerntipps\n';
+  
+  // Rows
+  sessions.forEach(session => {
+    const date = new Date(session.date);
+    const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' });
+    const formattedDate = date.toLocaleDateString('de-DE');
+    const contentTopics = (session.contentTopics || []).join('; ');
+    const competencies = (session.competencies || []).join('; ');
+    const studyTips = session.studyTips || '';
+    
+    // Escape CSV fields
+    const escapeCSV = (str: string) => {
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    
+    csvContent += [
+      formattedDate,
+      weekday,
+      session.startTime,
+      session.endTime,
+      escapeCSV(session.module),
+      escapeCSV(session.topic),
+      escapeCSV(session.description),
+      escapeCSV(session.learningMethod || ''),
+      escapeCSV(contentTopics),
+      escapeCSV(competencies),
+      escapeCSV(studyTips)
+    ].join(',') + '\n';
+  });
+  
+  // Create download link
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement('a');
+  link.setAttribute('href', encodedUri);
+  link.setAttribute('download', `Lernplan_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApiKey = '' }: StudyPlanGeneratorProps) {
   // Use test data if no real data provided (for testing purposes)
   const actualModules = modules && modules.length > 0 ? modules : [
@@ -53,6 +177,8 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const [planGenerated, setPlanGenerated] = useState(false);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // For month navigation
+  const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null); // For learning method tooltips
 
   const generatePlan = useCallback(async () => {
     setIsGenerating(true);
@@ -149,6 +275,7 @@ Erstelle für jedes verfügbare Zeitfenster eine optimale Lernsession mit:
 
 WICHTIGE REGELN:
 - Nutze NUR die verfügbaren Zeitfenster (Wochentage und Uhrzeiten beachten!)
+- WICHTIG: Plane ALLE wiederkehrenden Zeitfenster! Wenn ein Zeitfenster z.B. "Montag 17:00-20:00" ist, plane JEDEN Montag in diesem Zeitfenster bis zum Semesterende
 - Verteile den Workload proportional zu ECTS-Punkten
 - Plane Wiederholungssessions vor Prüfungen ein
 - Nutze die extrahierten Inhalte und Kompetenzen für spezifische Topics
@@ -307,11 +434,24 @@ Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
     return studySessions.filter(session => session.date === dateStr);
   }, [studySessions]); // Only recreate when studySessions changes
 
-  const currentMonth = useMemo(() => new Date(DEFAULT_MONTH), []);
+  const currentMonth = useMemo(() => {
+    const today = new Date();
+    const month = new Date(today.getFullYear(), today.getMonth() + currentMonthOffset, 1);
+    return month;
+  }, [currentMonthOffset]);
+  
   const weeks = useMemo(
     () => getWeeksInMonth(currentMonth.getFullYear(), currentMonth.getMonth()),
     [getWeeksInMonth, currentMonth]
   );
+
+  const handlePreviousMonth = () => {
+    setCurrentMonthOffset(prev => prev - 1);
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonthOffset(prev => prev + 1);
+  };
 
   if (!planGenerated) {
     return (
@@ -427,7 +567,7 @@ Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
               <RefreshCw className="size-4 mr-2" />
               Neu generieren
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => exportToExcel(studySessions, actualModules)}>
               <Download className="size-4 mr-2" />
               Exportieren
             </Button>
@@ -455,10 +595,18 @@ Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="size-5" />
-                {currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-              </CardTitle>
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" onClick={handlePreviousMonth}>
+                  <ChevronDown className="size-4 rotate-90" />
+                </Button>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="size-5" />
+                  {currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={handleNextMonth}>
+                  <ChevronUp className="size-4 -rotate-90" />
+                </Button>
+              </div>
               <div className="flex items-center gap-4 text-sm">
                 {actualModules.slice(0, 3).map((module, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -577,7 +725,14 @@ Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
                           <div className="flex-1">
                             <h4 className="text-gray-900 font-medium">{session.topic}</h4>
                             {session.learningMethod && (
-                              <Badge variant="outline" className="mt-1 text-xs">
+                              <Badge 
+                                variant="outline" 
+                                className="mt-1 text-xs cursor-pointer hover:bg-blue-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowMethodInfo(session.learningMethod || null);
+                                }}
+                              >
                                 {session.learningMethod}
                               </Badge>
                             )}
@@ -661,6 +816,48 @@ Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
             })}
           </CardContent>
         </Card>
+
+        {/* Learning Method Info Modal */}
+        {showMethodInfo && LEARNING_METHODS[showMethodInfo] && (
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowMethodInfo(null)}
+          >
+            <Card 
+              className="max-w-2xl w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Lightbulb className="size-5 text-yellow-600" />
+                    {LEARNING_METHODS[showMethodInfo].title}
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => setShowMethodInfo(null)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-gray-700">
+                  {LEARNING_METHODS[showMethodInfo].description}
+                </p>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Tipps zur Umsetzung:</h4>
+                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                    {LEARNING_METHODS[showMethodInfo].tips.map((tip, idx) => (
+                      <li key={idx}>{tip}</li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
