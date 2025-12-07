@@ -1,12 +1,14 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Target, Lightbulb } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Alert, AlertDescription } from './ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import OpenAI from 'openai';
 
 interface StudySession {
   id: string;
@@ -16,6 +18,10 @@ interface StudySession {
   module: string;
   topic: string;
   description: string;
+  learningMethod?: string; // e.g., "Spaced Repetition", "Deep Work", "Pomodoro"
+  contentTopics?: string[]; // Specific content topics to cover in this session
+  competencies?: string[]; // Competencies to develop in this session
+  studyTips?: string; // Additional study tips or notes
 }
 
 interface StudyPlanGeneratorProps {
@@ -46,97 +52,218 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const [isGenerating, setIsGenerating] = useState(false);
   const [planGenerated, setPlanGenerated] = useState(false);
   const [studySessions, setStudySessions] = useState<StudySession[]>([]);
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
 
-  const generatePlan = useCallback(() => {
+  const generatePlan = useCallback(async () => {
     setIsGenerating(true);
     
-    // Hier würde der echte API-Call passieren:
-    // const MODEL = 'gpt-4'; // Vom Developer konfiguriert
-    // const payload = { modules, timeSlots };
-    // const systemPrompt = `Du bist ein KI-Lernplan-Generator. Analysiere die Module und erstelle einen optimalen Lernplan.
-    // Wähle für jedes Modul automatisch die beste Lernmethode basierend auf:
-    // - Projekten → Deep Work
-    // - Mathematik/Statistik → Active Recall  
-    // - Prüfungen → Spaced Repetition
-    // - Programmieren → Pomodoro
-    // - Gruppenarbeit → Interleaving
-    // - Standard → Feynman Technik`;
-    // const response = await openai.chat.completions.create({
-    //   model: MODEL,
-    //   messages: [
-    //     { role: "system", content: systemPrompt }, 
-    //     { role: "user", content: JSON.stringify(payload) }
-    //   ],
-    //   headers: {
-    //     'Authorization': `Bearer ${propApiKey}`
-    //   }
-    // });
-    // const sessions = JSON.parse(response.choices[0].message.content);
+    // Find the last exam date from all modules
+    const findLastExamDate = () => {
+      let lastDate = new Date();
+      actualModules.forEach(module => {
+        if (module.assessments && Array.isArray(module.assessments)) {
+          module.assessments.forEach((assessment: { deadline?: string }) => {
+            if (assessment.deadline) {
+              const examDate = new Date(assessment.deadline);
+              if (examDate > lastDate) {
+                lastDate = examDate;
+              }
+            }
+          });
+        }
+      });
+      return lastDate;
+    };
     
-    setTimeout(() => {
-      // Mock JSON-Response von der KI
-      const mockSessions: StudySession[] = [
-        {
-          id: '1',
-          date: '2024-12-09',
-          startTime: '09:00',
-          endTime: '11:00',
-          module: actualModules[0]?.name || 'Software Engineering',
-          topic: 'Design Patterns einführen',
-          description: 'Singleton und Factory Pattern durcharbeiten',
-        },
-        {
-          id: '2',
-          date: '2024-12-09',
-          startTime: '14:00',
-          endTime: '16:00',
-          module: actualModules[1]?.name || 'Datenbanken',
-          topic: 'SQL Grundlagen',
-          description: 'SELECT, JOIN, WHERE Statements üben',
-        },
-        {
-          id: '3',
-          date: '2024-12-11',
-          startTime: '14:00',
-          endTime: '17:00',
-          module: actualModules[0]?.name || 'Software Engineering',
-          topic: 'Semesterarbeit Kapitel 1',
-          description: 'Einleitung und Problemstellung schreiben',
-        },
-        {
-          id: '4',
-          date: '2024-12-13',
-          startTime: '10:00',
-          endTime: '12:00',
-          module: actualModules[1]?.name || 'Datenbanken',
-          topic: 'Normalisierung',
-          description: '1NF bis 3NF Beispiele durcharbeiten',
-        },
-        {
-          id: '5',
-          date: '2024-12-16',
-          startTime: '09:00',
-          endTime: '11:00',
-          module: actualModules[0]?.name || 'Software Engineering',
-          topic: 'Observer Pattern',
-          description: 'Implementierung üben, Code-Beispiele',
-        },
-        {
-          id: '6',
-          date: '2024-12-18',
-          startTime: '14:00',
-          endTime: '16:00',
-          module: actualModules[1]?.name || 'Datenbanken',
-          topic: 'Projekt-Datenbank Design',
-          description: 'ER-Diagramm erstellen und validieren',
-        },
-      ];
+    const lastExamDate = findLastExamDate();
+    const startDate = new Date(); // Start from today
+    
+    try {
+      // Initialize OpenAI client
+      const openai = new OpenAI({
+        apiKey: propApiKey,
+        dangerouslyAllowBrowser: true
+      });
+      
+      // Prepare comprehensive data for AI
+      const planningData = {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: lastExamDate.toISOString().split('T')[0],
+        modules: actualModules.map(module => ({
+          name: module.name,
+          ects: module.ects,
+          workload: module.workload,
+          content: module.content || [],
+          competencies: module.competencies || [],
+          assessments: (module.assessments || []).map((a: any) => ({
+            type: a.type,
+            weight: a.weight,
+            format: a.format,
+            deadline: a.deadline
+          }))
+        })),
+        availableTimeSlots: actualTimeSlots.map(slot => ({
+          day: slot.day,
+          startTime: slot.startTime,
+          endTime: slot.endTime
+        }))
+      };
+      
+      // Gold-standard prompt with prompt engineering best practices
+      const systemPrompt = `Du bist ein Elite-Lernplan-Generator mit Expertise in Lernpsychologie, Zeitmanagement und evidenzbasierten Lernstrategien.
+
+DEINE AUFGABE:
+Erstelle einen optimalen, personalisierten Lernplan basierend auf den Modulen, verfügbaren Zeitfenstern und Prüfungsterminen des Studierenden.
+
+KONTEXT & PRINZIPIEN:
+1. **Spaced Repetition**: Wiederhole wichtige Konzepte in zunehmenden Abständen für besseres Langzeitgedächtnis
+2. **Interleaving**: Wechsle zwischen verschiedenen Modulen/Themen für bessere kognitive Flexibilität
+3. **Active Recall**: Betone aktives Abrufen statt passivem Lesen
+4. **Progressive Komplexität**: Starte mit Grundlagen, steigere graduell zu komplexeren Themen
+5. **Prüfungsvorbereitung**: Plane intensive Wiederholungen 2-3 Wochen vor Prüfungen
+6. **Kompetenzen-orientiert**: Richte Sessions an den zu entwickelnden Kompetenzen aus
+
+LERNMETHODEN (wähle automatisch die beste pro Session):
+- **Spaced Repetition**: Für Faktenwissen, Definitionen, Prüfungsvorbereitung
+- **Deep Work**: Für komplexe Projekte, Semesterarbeiten (mind. 2-4h Blöcke)
+- **Pomodoro**: Für Programmierung, Übungsaufgaben (25min Fokus + 5min Pause)
+- **Active Recall**: Für Mathematik, Statistik, Formeln
+- **Feynman Technik**: Für Konzepte, die erklärt werden müssen
+- **Interleaving**: Bei mehreren ähnlichen Modulen
+- **Practice Testing**: 1-2 Wochen vor Prüfungen
+
+AUSGABEFORMAT (JSON Array):
+Erstelle für jedes verfügbare Zeitfenster eine optimale Lernsession mit:
+{
+  "date": "YYYY-MM-DD",
+  "startTime": "HH:MM",
+  "endTime": "HH:MM",
+  "module": "Modulname",
+  "topic": "Präzises Lernthema (z.B. 'Prozessmodellierung mit BPMN 2.0')",
+  "description": "1-2 Sätze: Was genau lernen, wie vorgehen",
+  "learningMethod": "Gewählte Lernmethode",
+  "contentTopics": ["Spezifische Topics aus dem Modulinhalt"],
+  "competencies": ["Zu entwickelnde Kompetenzen"],
+  "studyTips": "Konkrete Tipps für diese Session (z.B. 'Erstelle Mindmap', 'Implementiere Beispiel')"
+}
+
+WICHTIGE REGELN:
+- Nutze NUR die verfügbaren Zeitfenster (Wochentage und Uhrzeiten beachten!)
+- Verteile den Workload proportional zu ECTS-Punkten
+- Plane Wiederholungssessions vor Prüfungen ein
+- Nutze die extrahierten Inhalte und Kompetenzen für spezifische Topics
+- Berücksichtige Gewichtungen der Assessments
+- Mische Module intelligent (Interleaving)
+- Starte mit Grundlagen aus den Inhalten, baue darauf auf
+- Vermeide Überlastung: Max. 2-3h konzentriertes Lernen pro Session
+
+Gib ein JSON-Objekt mit einem 'sessions' Array zurück:
+{
+  "sessions": [ ...array of session objects... ]
+}`;
+
+      const userPrompt = `Erstelle einen optimalen Lernplan mit folgenden Daten:\n\n${JSON.stringify(planningData, null, 2)}`;
+      
+      console.log('Generiere KI-Lernplan mit:', planningData);
+      
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7, // Creative but consistent
+        response_format: { type: 'json_object' }
+      });
+      
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('Keine Antwort von der KI erhalten');
+      }
+      
+      const parsedResponse = JSON.parse(content);
+      const sessions: StudySession[] = parsedResponse.sessions || [];
+      
+      if (!Array.isArray(sessions) || sessions.length === 0) {
+        throw new Error('Keine Sessions von der KI erhalten');
+      }
+      
+      console.log('KI-generierte Sessions:', sessions);
+      
+      // Ensure all sessions have IDs
+      const sessionsWithIds = Array.isArray(sessions) 
+        ? sessions.map((session, index) => ({
+            ...session,
+            id: (index + 1).toString()
+          }))
+        : [];
+      
+      setStudySessions(sessionsWithIds);
+      setPlanGenerated(true);
+      setIsGenerating(false);
+    } catch (error) {
+      console.error('Fehler bei der KI-Lernplan-Generierung:', error);
+      
+      // Fallback to enhanced mock data if API fails
+      const mockSessions: StudySession[] = [];
+      const currentDate = new Date(startDate);
+      let sessionId = 1;
+      
+      // Map weekday names to numbers
+      const dayMap: { [key: string]: number } = {
+        'Sonntag': 0, 'Montag': 1, 'Dienstag': 2, 'Mittwoch': 3,
+        'Donnerstag': 4, 'Freitag': 5, 'Samstag': 6
+      };
+      
+      // Generate sessions based on actual time slots
+      while (currentDate <= lastExamDate) {
+        const dayOfWeek = currentDate.getDay();
+        
+        // Find matching time slots for this day
+        const matchingSlots = actualTimeSlots.filter(slot => {
+          const slotDay = dayMap[slot.day];
+          return slotDay === dayOfWeek;
+        });
+        
+        matchingSlots.forEach(slot => {
+          const moduleIndex = sessionId % actualModules.length;
+          const module = actualModules[moduleIndex];
+          
+          if (module) {
+            // Pick random content and competency if available
+            const contentTopic = module.content && module.content.length > 0
+              ? module.content[Math.floor(Math.random() * module.content.length)]
+              : null;
+            const competency = module.competencies && module.competencies.length > 0
+              ? module.competencies[Math.floor(Math.random() * module.competencies.length)]
+              : null;
+            
+            mockSessions.push({
+              id: sessionId.toString(),
+              date: currentDate.toISOString().split('T')[0],
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              module: module.name || 'Module',
+              topic: contentTopic || `Lerneinheit ${sessionId}`,
+              description: `Vorbereitung für ${module.name}${competency ? ' - ' + competency : ''}`,
+              learningMethod: sessionId % 3 === 0 ? 'Spaced Repetition' : sessionId % 3 === 1 ? 'Active Recall' : 'Pomodoro',
+              contentTopics: contentTopic ? [contentTopic] : [],
+              competencies: competency ? [competency] : [],
+              studyTips: 'Mache Notizen und teste dein Wissen aktiv'
+            });
+            sessionId++;
+          }
+        });
+        
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
       
       setStudySessions(mockSessions);
       setPlanGenerated(true);
       setIsGenerating(false);
-    }, 2500);
-  }, [actualModules]);
+    }
+  }, [actualModules, actualTimeSlots, propApiKey]);
 
   // Kalender-Logik - Memoized to prevent recalculation on every render
   const getWeeksInMonth = useCallback((year: number, month: number) => {
@@ -392,15 +519,22 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
                             return (
                               <div
                                 key={session.id}
-                                className={`${bgColor} text-white p-2 rounded text-xs`}
+                                className={`${bgColor} text-white p-2 rounded text-xs cursor-pointer hover:opacity-90 transition-opacity`}
+                                onClick={() => setExpandedSession(session.id)}
+                                title={`${session.topic}${session.learningMethod ? ' - ' + session.learningMethod : ''}`}
                               >
                                 <div className="flex items-center gap-1 mb-1">
                                   <Clock className="size-3" />
                                   <span>{session.startTime}</span>
                                 </div>
-                                <div className="line-clamp-2">
+                                <div className="line-clamp-2 font-medium">
                                   {session.topic}
                                 </div>
+                                {session.learningMethod && (
+                                  <div className="text-xs opacity-90 mt-1 truncate">
+                                    {session.learningMethod}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -420,39 +554,109 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
             <CardTitle>Alle Lernsessions</CardTitle>
             <CardDescription>{studySessions.length} Sessions geplant</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             {studySessions.map((session) => {
               const moduleIndex = actualModules.findIndex(m => m.name === session.module);
               const colors = ['from-blue-500 to-blue-600', 'from-purple-500 to-purple-600', 'from-pink-500 to-pink-600'];
               const gradient = colors[moduleIndex % colors.length];
+              const isExpanded = expandedSession === session.id;
               
               return (
-                <div key={session.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className={`bg-gradient-to-br ${gradient} p-3 rounded-lg flex-shrink-0`}>
-                    <BookOpen className="size-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-1">
-                      <h4 className="text-gray-900">{session.topic}</h4>
-                      <Badge>{session.module}</Badge>
+                <Collapsible
+                  key={session.id}
+                  open={isExpanded}
+                  onOpenChange={() => setExpandedSession(isExpanded ? null : session.id)}
+                >
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="flex items-start gap-4 p-4">
+                      <div className={`bg-gradient-to-br ${gradient} p-3 rounded-lg flex-shrink-0`}>
+                        <BookOpen className="size-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="flex-1">
+                            <h4 className="text-gray-900 font-medium">{session.topic}</h4>
+                            {session.learningMethod && (
+                              <Badge variant="outline" className="mt-1 text-xs">
+                                {session.learningMethod}
+                              </Badge>
+                            )}
+                          </div>
+                          <Badge>{session.module}</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-2">{session.description}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="size-3" />
+                            {new Date(session.date).toLocaleDateString('de-DE', { 
+                              weekday: 'short', 
+                              day: '2-digit', 
+                              month: 'short' 
+                            })}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {session.startTime} - {session.endTime}
+                          </span>
+                        </div>
+                      </div>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          {isExpanded ? (
+                            <ChevronUp className="size-4" />
+                          ) : (
+                            <ChevronDown className="size-4" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{session.description}</p>
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3" />
-                        {new Date(session.date).toLocaleDateString('de-DE', { 
-                          weekday: 'short', 
-                          day: '2-digit', 
-                          month: 'short' 
-                        })}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="size-3" />
-                        {session.startTime} - {session.endTime}
-                      </span>
-                    </div>
+                    
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-0 space-y-3 border-t border-gray-200 mt-2">
+                        {/* Content Topics */}
+                        {session.contentTopics && session.contentTopics.length > 0 && (
+                          <div className="bg-blue-50 p-3 rounded-lg mt-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Target className="size-4 text-blue-600" />
+                              <h5 className="text-sm font-medium text-gray-900">Zu bearbeitende Themen</h5>
+                            </div>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                              {session.contentTopics.map((topic, idx) => (
+                                <li key={idx}>{topic}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Competencies */}
+                        {session.competencies && session.competencies.length > 0 && (
+                          <div className="bg-green-50 p-3 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <CheckCircle2 className="size-4 text-green-600" />
+                              <h5 className="text-sm font-medium text-gray-900">Kompetenzen entwickeln</h5>
+                            </div>
+                            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                              {session.competencies.map((comp, idx) => (
+                                <li key={idx}>{comp}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Study Tips */}
+                        {session.studyTips && (
+                          <div className="bg-yellow-50 p-3 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Lightbulb className="size-4 text-yellow-600" />
+                              <h5 className="text-sm font-medium text-gray-900">Lerntipps</h5>
+                            </div>
+                            <p className="text-sm text-gray-700">{session.studyTips}</p>
+                          </div>
+                        )}
+                      </div>
+                    </CollapsibleContent>
                   </div>
-                </div>
+                </Collapsible>
               );
             })}
           </CardContent>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Eye, Edit2, ChevronDown, ChevronUp, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Eye, Edit2, ChevronDown, ChevronUp, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -18,6 +18,8 @@ interface Module {
   assessments: Assessment[];
   pdfName?: string;
   extractedContent?: string; // Raw PDF content
+  content?: string[];  // Inhalte/Themen des Moduls
+  competencies?: string[];  // Lernziele/Kompetenzen
 }
 
 interface Assessment {
@@ -96,6 +98,8 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
             examDate: '',
             pdfName: file.name,
             extractedContent: result.extractedContent,
+            content: result.moduleData.content || [],
+            competencies: result.moduleData.competencies || [],
             assessments: result.moduleData.assessments.map((assessment, index) => ({
               id: Date.now().toString() + index,
               type: assessment.type,
@@ -216,6 +220,40 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
 
   const deleteModule = (id: string) => {
     setModules(modules.filter(m => m.id !== id));
+  };
+
+  const deleteAssessment = (moduleId: string, assessmentId: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        // Ensure at least one assessment remains
+        if (m.assessments.length > 1) {
+          return {
+            ...m,
+            assessments: m.assessments.filter(a => a.id !== assessmentId)
+          };
+        }
+      }
+      return m;
+    }));
+  };
+
+  const addAssessment = (moduleId: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        const newAssessment: Assessment = {
+          id: Date.now().toString() + Math.random(),
+          type: 'Schriftliche Prüfung',
+          weight: 0,
+          format: 'Einzelarbeit',
+          deadline: ''
+        };
+        return {
+          ...m,
+          assessments: [...m.assessments, newAssessment]
+        };
+      }
+      return m;
+    }));
   };
 
   const allDeadlinesSet = modules.every(module => 
@@ -490,6 +528,37 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                     </Collapsible>
                   )}
                   
+                  {/* Content/Topics Section */}
+                  {module.content && module.content.length > 0 && (
+                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
+                      <h4 className="text-sm text-gray-900 mb-2 flex items-center gap-2">
+                        <BookOpen className="size-4" />
+                        Inhalte & Themen
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                        {module.content.map((item, index) => (
+                          <li key={index}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {/* Competencies Section */}
+                  {module.competencies && module.competencies.length > 0 && (
+                    <div className="bg-green-50 p-4 rounded-lg mb-4">
+                      <h4 className="text-sm text-gray-900 mb-2 flex items-center gap-2">
+                        <CheckCircle2 className="size-4" />
+                        Lernziele & Kompetenzen
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                        {module.competencies.map((item, index) => (
+                          <li key={index}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="text-gray-900">Leistungsnachweise</h4>
                     <span className="text-sm text-gray-600">
@@ -538,7 +607,7 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                           </div>
                         </div>
                         
-                        <div className="md:col-span-6">
+                        <div className="md:col-span-5">
                           <div className="space-y-1">
                             <Label htmlFor={`deadline-${assessment.id}`} className="text-xs">
                               Prüfungsdatum *
@@ -555,9 +624,31 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                             </div>
                           </div>
                         </div>
+                        
+                        <div className="md:col-span-1 flex items-center justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteAssessment(module.id, assessment.id)}
+                            disabled={module.assessments.length === 1}
+                            title={module.assessments.length === 1 ? "Mindestens eine Prüfung erforderlich" : "Prüfung löschen"}
+                          >
+                            <Trash2 className="size-4 text-red-600" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
+                  
+                  {/* Add Assessment Button */}
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-2"
+                    onClick={() => addAssessment(module.id)}
+                  >
+                    <Calendar className="size-4 mr-2" />
+                    Weitere Prüfung hinzufügen
+                  </Button>
                 </div>
               </CardContent>
             </Card>
