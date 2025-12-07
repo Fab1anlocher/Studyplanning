@@ -36,14 +36,24 @@ interface StepComponentProps {
 }
 
 export default function App() {
-  // For testing: Start at step 4 (StudyPlanGenerator) if ?test=true in URL
+  // For testing: Start at different steps based on URL params
+  // ?test=true -> Step 4 (StudyPlanGenerator)
+  // ?step=3 -> Step 3 (WeeklySchedule)
   const urlParams = new URLSearchParams(window.location.search);
   const isTestMode = urlParams.get('test') === 'true';
+  const testStep = urlParams.get('step');
   
-  const [currentStep, setCurrentStep] = useState(isTestMode ? 4 : 0);
-  const [modules, setModules] = useState<Module[]>([]);
+  const initialStep = isTestMode ? 4 : (testStep ? parseInt(testStep) : 0);
+  const hasTestData = isTestMode || testStep;
+  
+  const [currentStep, setCurrentStep] = useState(initialStep);
+  const [modules, setModules] = useState<Module[]>(hasTestData ? [
+    { id: '1', name: 'Software Engineering', ects: 6, workload: 180, examDate: '2024-12-20', assessments: [] },
+    { id: '2', name: 'Datenbanken', ects: 4, workload: 120, examDate: '2024-12-18', assessments: [] },
+    { id: '3', name: 'Web Development', ects: 5, workload: 150, examDate: '2024-12-22', assessments: [] }
+  ] : []);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
-  const [apiKey, setApiKey] = useState(isTestMode ? 'sk-test-123' : '');
+  const [apiKey, setApiKey] = useState(hasTestData ? 'sk-test-123' : '');
 
   const steps = [
     { component: WelcomePage, title: 'Willkommen' },
