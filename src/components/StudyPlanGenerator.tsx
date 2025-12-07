@@ -55,7 +55,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
       let lastDate = new Date();
       actualModules.forEach(module => {
         if (module.assessments && Array.isArray(module.assessments)) {
-          module.assessments.forEach((assessment: any) => {
+          module.assessments.forEach((assessment: { deadline?: string }) => {
             if (assessment.deadline) {
               const examDate = new Date(assessment.deadline);
               if (examDate > lastDate) {
@@ -73,7 +73,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
     
     // Hier würde der echte API-Call passieren:
     // const MODEL = 'gpt-4'; // Vom Developer konfiguriert
-    // const payload = { modules, timeSlots, startDate, lastExamDate };
+    // const payload = { modules: actualModules, timeSlots: actualTimeSlots, startDate, lastExamDate };
     // const systemPrompt = `Du bist ein KI-Lernplan-Generator. Analysiere die Module und erstelle einen optimalen Lernplan.
     // Der Plan soll vom ${startDate.toISOString()} bis zum ${lastExamDate.toISOString()} gehen.
     // Wähle für jedes Modul automatisch die beste Lernmethode basierend auf:
