@@ -50,10 +50,32 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const generatePlan = useCallback(() => {
     setIsGenerating(true);
     
+    // Find the last exam date from all modules
+    const findLastExamDate = () => {
+      let lastDate = new Date();
+      actualModules.forEach(module => {
+        if (module.assessments && Array.isArray(module.assessments)) {
+          module.assessments.forEach((assessment: any) => {
+            if (assessment.deadline) {
+              const examDate = new Date(assessment.deadline);
+              if (examDate > lastDate) {
+                lastDate = examDate;
+              }
+            }
+          });
+        }
+      });
+      return lastDate;
+    };
+    
+    const lastExamDate = findLastExamDate();
+    const startDate = new Date(); // Start from today
+    
     // Hier würde der echte API-Call passieren:
     // const MODEL = 'gpt-4'; // Vom Developer konfiguriert
-    // const payload = { modules, timeSlots };
+    // const payload = { modules, timeSlots, startDate, lastExamDate };
     // const systemPrompt = `Du bist ein KI-Lernplan-Generator. Analysiere die Module und erstelle einen optimalen Lernplan.
+    // Der Plan soll vom ${startDate.toISOString()} bis zum ${lastExamDate.toISOString()} gehen.
     // Wähle für jedes Modul automatisch die beste Lernmethode basierend auf:
     // - Projekten → Deep Work
     // - Mathematik/Statistik → Active Recall  
@@ -74,63 +96,38 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
     // const sessions = JSON.parse(response.choices[0].message.content);
     
     setTimeout(() => {
-      // Mock JSON-Response von der KI
-      const mockSessions: StudySession[] = [
-        {
-          id: '1',
-          date: '2024-12-09',
-          startTime: '09:00',
-          endTime: '11:00',
-          module: actualModules[0]?.name || 'Software Engineering',
-          topic: 'Design Patterns einführen',
-          description: 'Singleton und Factory Pattern durcharbeiten',
-        },
-        {
-          id: '2',
-          date: '2024-12-09',
-          startTime: '14:00',
-          endTime: '16:00',
-          module: actualModules[1]?.name || 'Datenbanken',
-          topic: 'SQL Grundlagen',
-          description: 'SELECT, JOIN, WHERE Statements üben',
-        },
-        {
-          id: '3',
-          date: '2024-12-11',
-          startTime: '14:00',
-          endTime: '17:00',
-          module: actualModules[0]?.name || 'Software Engineering',
-          topic: 'Semesterarbeit Kapitel 1',
-          description: 'Einleitung und Problemstellung schreiben',
-        },
-        {
-          id: '4',
-          date: '2024-12-13',
-          startTime: '10:00',
-          endTime: '12:00',
-          module: actualModules[1]?.name || 'Datenbanken',
-          topic: 'Normalisierung',
-          description: '1NF bis 3NF Beispiele durcharbeiten',
-        },
-        {
-          id: '5',
-          date: '2024-12-16',
-          startTime: '09:00',
-          endTime: '11:00',
-          module: actualModules[0]?.name || 'Software Engineering',
-          topic: 'Observer Pattern',
-          description: 'Implementierung üben, Code-Beispiele',
-        },
-        {
-          id: '6',
-          date: '2024-12-18',
-          startTime: '14:00',
-          endTime: '16:00',
-          module: actualModules[1]?.name || 'Datenbanken',
-          topic: 'Projekt-Datenbank Design',
-          description: 'ER-Diagramm erstellen und validieren',
-        },
-      ];
+      // Generate mock sessions from start date to last exam date
+      const mockSessions: StudySession[] = [];
+      const currentDate = new Date(startDate);
+      let sessionId = 1;
+      
+      // Generate sessions distributed across the time period
+      while (currentDate <= lastExamDate) {
+        // Add sessions based on timeSlots (for simplicity, add 2-3 sessions per week)
+        const dayOfWeek = currentDate.getDay();
+        
+        // Add sessions on Monday, Wednesday, and Friday
+        if (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) {
+          const moduleIndex = Math.floor(Math.random() * actualModules.length);
+          const module = actualModules[moduleIndex];
+          
+          if (module) {
+            mockSessions.push({
+              id: sessionId.toString(),
+              date: currentDate.toISOString().split('T')[0],
+              startTime: dayOfWeek === 1 ? '09:00' : dayOfWeek === 3 ? '14:00' : '10:00',
+              endTime: dayOfWeek === 1 ? '11:00' : dayOfWeek === 3 ? '16:00' : '12:00',
+              module: module.name || 'Module',
+              topic: `Lerneinheit ${sessionId}`,
+              description: `Vorbereitung für ${module.name}`,
+            });
+            sessionId++;
+          }
+        }
+        
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
       
       setStudySessions(mockSessions);
       setPlanGenerated(true);

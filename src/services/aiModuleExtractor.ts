@@ -20,6 +20,8 @@ export interface ExtractedModuleData {
     weight: number;
     format: string;
   }[];
+  content?: string[];  // Inhalte/Themen des Moduls
+  competencies?: string[];  // Lernziele/Kompetenzen
 }
 
 /**
@@ -59,12 +61,16 @@ Extrahiere folgende Informationen aus dem Text und gib sie als JSON zurück:
    - type: Art des Nachweises (z.B. "Schriftliche Prüfung", "Semesterarbeit", "Projekt", "Präsentation", "Reflexion", "Mündliche Prüfung")
    - weight: Gewichtung in Prozent (als Zahl)
    - format: "Einzelarbeit" oder "Gruppenarbeit"
+5. content: Ein Array von Inhalten/Themen des Moduls (z.B. "Vorteile und Nutzen der Prozessorientierung", "Prozessidentifikation und Prozesslandkarten", "Prozessmodellierung", etc.)
+6. competencies: Ein Array von Lernzielen/Kompetenzen (z.B. "Die Studierenden können Grundbegriffe des Prozessmanagements erklären", "Die Studierenden können Geschäftsprozesse identifizieren", etc.)
 
 Achte besonders auf:
 - ECTS-Punkte können auch als "Credits" bezeichnet werden
 - Workload kann aus ECTS berechnet werden (1 ECTS = 25-30 Stunden)
 - Leistungsnachweise können verschiedene Namen haben (Kompetenznachweis, Prüfung, Assessment, etc.)
 - Die Gewichtungen sollten sich zu 100% aufaddieren
+- Inhalte/Themen sind oft unter Abschnitten wie "Inhalt", "Themen", "Lehrinhalte" zu finden
+- Kompetenzen sind oft unter Abschnitten wie "Lernziele", "Kompetenzen", "Die Studierenden können..." zu finden
 
 Gib NUR das JSON-Objekt zurück, ohne zusätzlichen Text oder Markdown-Formatierung.`;
 
