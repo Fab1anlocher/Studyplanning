@@ -37,22 +37,24 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     const pdf = await loadingTask.promise;
     console.log('PDF geladen, Seiten:', pdf.numPages);
     
-    let fullText = '';
-    
-    // Alle Seiten durchgehen und Text extrahieren
-    // Wichtig: Seiten werden sequenziell verarbeitet um Speicher zu sparen
+    // Alle Seiten parallel verarbeiten für bessere Performance
+    const pagePromises = [];
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      
-      // Text-Items zu String zusammenfügen
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
-      
-      fullText += pageText + '\n\n';
-      console.log(`Seite ${pageNum} extrahiert, ${pageText.length} Zeichen`);
+      pagePromises.push(
+        pdf.getPage(pageNum).then(async (page) => {
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ');
+          console.log(`Seite ${pageNum} extrahiert, ${pageText.length} Zeichen`);
+          return pageText;
+        })
+      );
     }
+    
+    // Alle Seiten gleichzeitig verarbeiten
+    const pageTexts = await Promise.all(pagePromises);
+    const fullText = pageTexts.join('\n\n');
     
     console.log('PDF-Extraktion abgeschlossen, Gesamt:', fullText.length, 'Zeichen');
     return fullText.trim();

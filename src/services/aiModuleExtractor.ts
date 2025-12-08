@@ -52,37 +52,57 @@ export async function extractModuleDataWithAI(
   });
 
   const systemPrompt = `Du bist ein KI-Assistent, der Modulbeschreibungen von Hochschulen analysiert.
-Extrahiere folgende Informationen aus dem Text und gib sie als JSON zurück:
+Extrahiere NUR folgende Informationen und gib sie als kompaktes JSON zurück:
 
-1. title: Der vollständige Titel des Moduls
-2. ects: Die Anzahl der ECTS-Punkte (als Zahl)
-3. workload: Der Workload in Stunden (als Zahl)
-4. assessments: Ein Array von Leistungsnachweisen mit:
-   - type: Art des Nachweises (z.B. "Schriftliche Prüfung", "Semesterarbeit", "Projekt", "Präsentation", "Reflexion", "Mündliche Prüfung")
-   - weight: Gewichtung in Prozent (als Zahl)
+1. title: Modulname/Modultitel
+2. ects: ECTS-Punkte (Zahl)
+3. workload: Workload in Stunden (Zahl, falls nicht angegeben: ECTS × 30)
+4. assessments: Array von Kompetenznachweisen mit:
+   - type: z.B. "Schriftliche Prüfung", "Semesterarbeit", "Projekt", "Präsentation"
+   - weight: Gewichtung in % (Zahl)
    - format: "Einzelarbeit" oder "Gruppenarbeit"
-5. content: Ein Array von Inhalten/Themen des Moduls (z.B. "Vorteile und Nutzen der Prozessorientierung", "Prozessidentifikation und Prozesslandkarten", "Prozessmodellierung", etc.)
-6. competencies: Ein Array von Lernzielen/Kompetenzen (z.B. "Die Studierenden können Grundbegriffe des Prozessmanagements erklären", "Die Studierenden können Geschäftsprozesse identifizieren", etc.)
+   - deadline: Prüfungsdatum falls angegeben (Format: YYYY-MM-DD)
+5. content: Array der 4-6 WICHTIGSTEN Modulinhalte/Themen (nur die für Lernplanung relevantesten)
+6. competencies: Array der 3-5 WICHTIGSTEN Lernziele/Kompetenzen (nur die für Lernplanung relevantesten)
 
-Achte besonders auf:
-- ECTS-Punkte können auch als "Credits" bezeichnet werden
-- Workload kann aus ECTS berechnet werden (1 ECTS = 25-30 Stunden)
-- Leistungsnachweise können verschiedene Namen haben (Kompetenznachweis, Prüfung, Assessment, etc.)
-- Die Gewichtungen sollten sich zu 100% aufaddieren
-- Inhalte/Themen sind oft unter Abschnitten wie "Inhalt", "Themen", "Lehrinhalte" zu finden
-- Kompetenzen sind oft unter Abschnitten wie "Lernziele", "Kompetenzen", "Die Studierenden können..." zu finden
+Suche gezielt nach den Abschnitten:
+- "Kompetenznachweis" oder "Prüfung" für assessments
+- "ECTS" oder "Credits" für Punkte
+- "Workload" oder "Arbeitsaufwand" für Stunden
+- "Inhalt" oder "Modulinhalte" oder "Themen" für content
+- "Kompetenzen" oder "Lernziele" oder "Die Studierenden können" für competencies
 
-Gib NUR das JSON-Objekt zurück, ohne zusätzlichen Text oder Markdown-Formatierung.`;
+Wichtig für content:
+- NUR 4-6 Hauptthemen (keine vollständige Auflistung)
+- Fokus auf prüfungsrelevante Inhalte
+- Kurz und prägnant (z.B. "Prozessmodellierung", "Prozessoptimierung")
+
+Wichtig für competencies:
+- NUR 3-5 Hauptkompetenzen (keine vollständige Liste)
+- Fokus auf messbare, prüfungsrelevante Fähigkeiten
+- Kurz und prägnant formuliert
+
+Wichtig:
+- Gewichtungen müssen sich zu 100% addieren
+- Falls nur eine Prüfung: weight = 100
+- Gib NUR valides JSON zurück, keine Erklärungen`;
 
   try {
+    // Text auf 12.000 Zeichen begrenzen für schnellere Verarbeitung
+    // Wichtige Infos (ECTS, Kompetenznachweis, etc.) stehen meist am Anfang
+    const truncatedText = pdfText.length > 12000 
+      ? pdfText.substring(0, 12000) + '...'
+      : pdfText;
+    
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Günstiges aber leistungsfähiges Modell
+      model: 'gpt-4o', // Günstiges aber leistungsfähiges Modell
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Analysiere diese Modulbeschreibung:\n\n${pdfText}` }
+        { role: 'user', content: `Modulbeschreibung:\n\n${truncatedText}` }
       ],
       temperature: 0.1, // Niedrige Temperature für konsistentere Ergebnisse
-      response_format: { type: 'json_object' }
+      response_format: { type: 'json_object' },
+      max_tokens: 1000 // Reduziertes Token-Limit für schnellere Response
     });
 
     const content = response.choices[0]?.message?.content;

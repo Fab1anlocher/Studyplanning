@@ -723,18 +723,26 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                         
                         <div className="md:col-span-3">
                           <div className="space-y-1">
-                            <Input
-                              value={assessment.type}
-                              onChange={(e) => updateAssessmentType(module.id, assessment.id, e.target.value)}
-                              className="text-sm bg-white"
-                              placeholder="Prüfungstyp"
-                            />
-                            <Input
-                              value={assessment.format}
-                              onChange={(e) => updateAssessmentFormat(module.id, assessment.id, e.target.value)}
-                              className="text-xs bg-white"
-                              placeholder="Format"
-                            />
+                            <div className="relative group">
+                              <Input
+                                value={assessment.type}
+                                onChange={(e) => updateAssessmentType(module.id, assessment.id, e.target.value)}
+                                className="text-sm bg-gray-50 border-gray-200 focus:bg-white transition-colors cursor-pointer"
+                                placeholder="Prüfungstyp"
+                                onFocus={(e) => e.target.classList.add('bg-white')}
+                                onBlur={(e) => !e.target.value && e.target.classList.remove('bg-white')}
+                              />
+                            </div>
+                            <div className="relative group">
+                              <Input
+                                value={assessment.format}
+                                onChange={(e) => updateAssessmentFormat(module.id, assessment.id, e.target.value)}
+                                className="text-xs bg-gray-50 border-gray-200 focus:bg-white transition-colors cursor-pointer"
+                                placeholder="Format"
+                                onFocus={(e) => e.target.classList.add('bg-white')}
+                                onBlur={(e) => !e.target.value && e.target.classList.remove('bg-white')}
+                              />
+                            </div>
                           </div>
                         </div>
                         
@@ -752,9 +760,9 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                           </div>
                         </div>
                         
-                        <div className="md:col-span-5">
+                        <div className="md:col-span-4">
                           <div className="space-y-1">
-                            <Label htmlFor={`deadline-${assessment.id}`} className="text-xs">
+                            <Label htmlFor={`deadline-${assessment.id}`} className="text-xs font-medium">
                               Prüfungsdatum *
                             </Label>
                             <div className="flex items-center gap-2">
@@ -764,13 +772,14 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                                 type="date"
                                 value={assessment.deadline}
                                 onChange={(e) => updateAssessmentDeadline(module.id, assessment.id, e.target.value)}
-                                className={`min-w-[150px] ${!assessment.deadline ? 'border-orange-400' : 'border-green-400'}`}
+                                className={`flex-1 text-sm ${!assessment.deadline ? 'border-orange-400 border-2' : 'border-green-400'}`}
+                                style={{ minWidth: '160px' }}
                               />
                             </div>
                           </div>
                         </div>
                         
-                        <div className="md:col-span-1 flex items-center justify-center">
+                        <div className="md:col-span-2 flex items-center justify-end">
                           <Button
                             variant="ghost"
                             size="sm"
