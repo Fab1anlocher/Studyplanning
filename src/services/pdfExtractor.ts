@@ -19,13 +19,21 @@ const PDF_MAGIC_NUMBER = '%PDF-'; // PDF file header identifier
 
 /**
  * Validates if file is actually a PDF by checking magic number (header bytes)
+ * PDFs start with %PDF- (25 50 44 46 2D in hex)
  * @param file - File to validate
  * @returns Promise<boolean> - true if valid PDF
  */
 async function isPDFByMagicNumber(file: File): Promise<boolean> {
   try {
-    const headerBytes = await file.slice(0, 5).text();
-    return headerBytes.startsWith(PDF_MAGIC_NUMBER);
+    const arrayBuffer = await file.slice(0, 5).arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    // Check for %PDF- signature (0x25 0x50 0x44 0x46 0x2D)
+    return bytes.length >= 5 &&
+           bytes[0] === 0x25 && // %
+           bytes[1] === 0x50 && // P
+           bytes[2] === 0x44 && // D
+           bytes[3] === 0x46 && // F
+           bytes[4] === 0x2D;   // -
   } catch {
     return false;
   }

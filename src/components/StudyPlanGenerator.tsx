@@ -31,9 +31,14 @@ const EXAM_REVIEW_PERIOD_DAYS = 14; // 2 weeks
  * Calculates number of weeks between two dates
  * @param startDate - Start date
  * @param endDate - End date
- * @returns Number of weeks (rounded up)
+ * @returns Number of weeks (rounded up), or 0 if endDate < startDate
  */
 function calculateWeeksBetweenDates(startDate: Date, endDate: Date): number {
+  // REVIEW: Guard against invalid date ranges
+  if (endDate < startDate) {
+    console.warn('[calculateWeeksBetweenDates] End date is before start date. Returning 0.');
+    return 0;
+  }
   const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   return Math.ceil(daysDiff / 7);
 }
@@ -561,8 +566,8 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
           return;
         }
         
-        // Validate learning method
-        if (session.learningMethod && !ALLOWED_LEARNING_METHODS.includes(session.learningMethod as any)) {
+        // Validate learning method (type-safe check)
+        if (session.learningMethod && !ALLOWED_LEARNING_METHODS.includes(session.learningMethod as typeof ALLOWED_LEARNING_METHODS[number])) {
           console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültige Lernmethode: ${session.learningMethod}. Setze auf "Active Recall".`);
           session.learningMethod = 'Active Recall';
         }

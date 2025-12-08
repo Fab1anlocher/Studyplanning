@@ -24,9 +24,23 @@ const COMPETENCIES_MAX = 5;
 /**
  * Ensures assessment weights sum to exactly 100% using largest remainder method
  * This prevents rounding errors from causing weight sums != 100%
+ * @param assessments - Array of assessments with weights
+ * @returns Normalized assessments with weights summing to exactly 100%
  */
 function normalizeAssessmentWeights(assessments: Array<{ weight: number; [key: string]: any }>): typeof assessments {
   const total = assessments.reduce((sum, a) => sum + a.weight, 0);
+  
+  // REVIEW: Guard against zero or negative totals
+  if (total <= 0) {
+    console.warn('Assessment weights sum to zero or negative. Setting equal weights.');
+    const equalWeight = Math.floor(100 / assessments.length);
+    const remainder = 100 - (equalWeight * assessments.length);
+    return assessments.map((a, i) => ({
+      ...a,
+      weight: i < remainder ? equalWeight + 1 : equalWeight
+    }));
+  }
+  
   if (Math.abs(total - 100) < ASSESSMENT_WEIGHT_TOLERANCE) {
     return assessments; // Already close enough
   }
@@ -193,13 +207,14 @@ ANTI-HALLUCINATION RULES:
     }
     
     // REVIEW: Validate ECTS range (typical university modules: 1-30 ECTS)
-    if (!parsedData.ects || parsedData.ects < ECTS_MIN || parsedData.ects > ECTS_MAX) {
+    // Use explicit null check to allow 0 to be caught by range validation
+    if (parsedData.ects == null || typeof parsedData.ects !== 'number' || parsedData.ects < ECTS_MIN || parsedData.ects > ECTS_MAX) {
       console.warn(`ECTS außerhalb des normalen Bereichs: ${parsedData.ects}. Setze auf ${ECTS_DEFAULT} (Standard).`);
       parsedData.ects = ECTS_DEFAULT;
     }
     
     // REVIEW: Validate workload range (typical: 30h per ECTS, max 900h for 30 ECTS)
-    if (!parsedData.workload || parsedData.workload < WORKLOAD_MIN || parsedData.workload > WORKLOAD_MAX) {
+    if (parsedData.workload == null || typeof parsedData.workload !== 'number' || parsedData.workload < WORKLOAD_MIN || parsedData.workload > WORKLOAD_MAX) {
       console.warn(`Workload außerhalb des normalen Bereichs: ${parsedData.workload}h. Berechne aus ECTS.`);
       parsedData.workload = parsedData.ects * WORKLOAD_PER_ECTS;
     }
