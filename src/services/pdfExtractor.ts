@@ -11,6 +11,26 @@ import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 // PDF.js Worker konfigurieren - erforderlich für Performance und Stabilität
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+// REVIEW: Constants for validation
+const MAX_FILE_SIZE_MB = 50;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const MAX_PAGES = 200;
+const PDF_MAGIC_NUMBER = '%PDF-'; // PDF file header identifier
+
+/**
+ * Validates if file is actually a PDF by checking magic number (header bytes)
+ * @param file - File to validate
+ * @returns Promise<boolean> - true if valid PDF
+ */
+async function isPDFByMagicNumber(file: File): Promise<boolean> {
+  try {
+    const headerBytes = await file.slice(0, 5).text();
+    return headerBytes.startsWith(PDF_MAGIC_NUMBER);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Extrahiert den vollständigen Text aus einer PDF-Datei
  * 
@@ -34,17 +54,22 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   }
   
   // REVIEW: File size validation (max 50MB to prevent memory issues)
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
   if (file.size === 0) {
     throw new Error('Die Datei ist leer (0 Bytes)');
   }
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: 50MB`);
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error(`Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_MB}MB`);
   }
   
-  // REVIEW: File type validation
+  // REVIEW: File type validation with magic number check (more secure than MIME type alone)
   if (!file.type || file.type !== 'application/pdf') {
     throw new Error(`Ungültiger Dateityp: ${file.type || 'unbekannt'}. Nur PDF-Dateien werden unterstützt.`);
+  }
+  
+  // Additional security: Validate PDF magic number (header bytes)
+  const isValidPDF = await isPDFByMagicNumber(file);
+  if (!isValidPDF) {
+    throw new Error('Die Datei ist keine gültige PDF (fehlerhafter Header). Bitte verwende eine echte PDF-Datei.');
   }
   
   try {
@@ -63,7 +88,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     console.log('PDF geladen, Seiten:', pdf.numPages);
     
     // REVIEW: Page count validation (max 200 pages to prevent excessive processing)
-    const MAX_PAGES = 200;
     if (pdf.numPages === 0) {
       throw new Error('Die PDF enthält keine Seiten');
     }

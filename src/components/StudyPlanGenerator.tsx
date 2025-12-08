@@ -11,6 +11,33 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 import OpenAI from 'openai';
 import { ModuleLearningGuide } from './ModuleLearningGuide';
 
+// REVIEW: Constants for pedagogical and validation rules
+const ALLOWED_LEARNING_METHODS = [
+  'Spaced Repetition',
+  'Active Recall', 
+  'Deep Work',
+  'Pomodoro',
+  'Feynman Technik',
+  'Interleaving',
+  'Practice Testing'
+] as const;
+
+const TIME_FORMAT_REGEX = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+const MAX_DAILY_STUDY_MINUTES = 8 * 60; // 8 hours
+const MAX_CONSECUTIVE_STUDY_DAYS = 6;
+const EXAM_REVIEW_PERIOD_DAYS = 14; // 2 weeks
+
+/**
+ * Calculates number of weeks between two dates
+ * @param startDate - Start date
+ * @param endDate - End date
+ * @returns Number of weeks (rounded up)
+ */
+function calculateWeeksBetweenDates(startDate: Date, endDate: Date): number {
+  const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.ceil(daysDiff / 7);
+}
+
 interface StudySession {
   id: string;
   date: string;
@@ -325,13 +352,13 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
    ✓ Competencies MÜSSEN aus dem "competencies"-Array stammen
 
 4. SESSION-ANZAHL-VALIDIERUNG:
-   ✓ MINIMUM: ${Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length)} Sessions
-   ✓ MAXIMUM: ${Math.min(200, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length * 2)} Sessions
+   ✓ MINIMUM: ${Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length)} Sessions
+   ✓ MAXIMUM: ${Math.min(200, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length * 2)} Sessions
    ✓ Falls zu wenig Slots: Nutze jeden Slot mehrfach pro Woche
    ✓ Verteile Sessions gleichmäßig über den gesamten Zeitraum
 
 5. LERNMETHODEN-VALIDIERUNG:
-   ✓ Nutze NUR diese Methoden: "Spaced Repetition", "Active Recall", "Deep Work", "Pomodoro", "Feynman Technik", "Interleaving", "Practice Testing"
+   ✓ Nutze NUR diese Methoden: "${ALLOWED_LEARNING_METHODS.join('", "')}"
    ✓ KEINE erfundenen oder anderen Methodennamen
    ✓ Methode muss zum Inhalt passen (siehe Framework unten)
 
@@ -369,8 +396,8 @@ SCHRITT 1 - ZEITFENSTER-MAPPING (KRITISCH!):
 ✓ BERECHNUNG:
   - Heute ist: ${startDate.toISOString().split('T')[0]}
   - Letzte Prüfung: ${lastExamDate.toISOString().split('T')[0]}
-  - Das sind ca. ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7))} Wochen
-  - Bei ${actualTimeSlots.length} Slots pro Woche = ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length} Sessions MINDESTENS!
+  - Das sind ca. ${calculateWeeksBetweenDates(startDate, lastExamDate)} Wochen
+  - Bei ${actualTimeSlots.length} Slots pro Woche = ${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length} Sessions MINDESTENS!
 
 ✓ WICHTIG: Gehe jeden Wochentag durch und plane ALLE Vorkommen bis zum Ende!
 
@@ -469,7 +496,7 @@ Gib zurück:
 ════════════════════════════════════════════════════════════════════
 
 ✅ FINAL VALIDATION CHECKLIST vor Ausgabe:
-□ Minimale Anzahl Sessions: ${Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length)}
+□ Minimale Anzahl Sessions: ${Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length)}
 □ Alle Session-Daten zwischen ${startDate.toISOString().split('T')[0]} und ${lastExamDate.toISOString().split('T')[0]}
 □ Alle Zeitfenster stammen aus availableTimeSlots
 □ Alle Module-Namen existieren in bereitgestellten Modulen
@@ -484,10 +511,10 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
 
       const userPrompt = `Erstelle meinen personalisierten Lernplan für das GESAMTE Semester:\n\n${JSON.stringify(planningData, null, 2)}
 
-WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7))} Wochen mit jeweils ${actualTimeSlots.length} Sessions pro Woche!`;
+WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Wochen mit jeweils ${actualTimeSlots.length} Sessions pro Woche!`;
       
       console.log('Generiere KI-Lernplan mit DeepSeek:', planningData);
-      console.log(`Erwartete Sessions: ~${Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length}`);
+      console.log(`Erwartete Sessions: ~${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length}`);
       
       const response = await openai.chat.completions.create({
         model: 'deepseek-chat',
@@ -518,7 +545,6 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
       const validatedSessions: StudySession[] = [];
       const minDate = new Date(startDate);
       const maxDate = new Date(lastExamDate);
-      const allowedMethods = ['Spaced Repetition', 'Active Recall', 'Deep Work', 'Pomodoro', 'Feynman Technik', 'Interleaving', 'Practice Testing'];
       const moduleNames = new Set(actualModules.map(m => m.name));
       
       sessions.forEach((session, index) => {
@@ -536,14 +562,13 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
         }
         
         // Validate learning method
-        if (session.learningMethod && !allowedMethods.includes(session.learningMethod)) {
+        if (session.learningMethod && !ALLOWED_LEARNING_METHODS.includes(session.learningMethod as any)) {
           console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültige Lernmethode: ${session.learningMethod}. Setze auf "Active Recall".`);
           session.learningMethod = 'Active Recall';
         }
         
         // Validate time format
-        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-        if (!timeRegex.test(session.startTime) || !timeRegex.test(session.endTime)) {
+        if (!TIME_FORMAT_REGEX.test(session.startTime) || !TIME_FORMAT_REGEX.test(session.endTime)) {
           console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültiges Zeitformat. Wird übersprungen.`);
           return;
         }
@@ -563,7 +588,7 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
       console.log(`[StudyPlanGenerator] Validierung: ${validatedSessions.length}/${sessions.length} Sessions gültig`);
       
       // REVIEW: Warn if too few sessions generated
-      const expectedMinSessions = Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length);
+      const expectedMinSessions = Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length);
       if (validatedSessions.length < expectedMinSessions * 0.5) {
         console.warn(`[StudyPlanGenerator] Zu wenige Sessions generiert: ${validatedSessions.length} (erwartet: ${expectedMinSessions})`);
       }
@@ -590,8 +615,8 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
           return sum + duration;
         }, 0);
         
-        if (totalMinutes > 480) { // 8 hours = 480 minutes
-          pedagogicalWarnings.push(`⚠️ ${date}: ${Math.floor(totalMinutes / 60)}h Lernzeit (max. empfohlen: 8h) - Überlastungsgefahr!`);
+        if (totalMinutes > MAX_DAILY_STUDY_MINUTES) {
+          pedagogicalWarnings.push(`⚠️ ${date}: ${Math.floor(totalMinutes / 60)}h Lernzeit (max. empfohlen: ${MAX_DAILY_STUDY_MINUTES / 60}h) - Überlastungsgefahr!`);
         }
         
         // Check for same module multiple times per day (should be max 2)
@@ -618,7 +643,7 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
           const dayDiff = Math.floor((currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24));
           if (dayDiff === 1) {
             consecutiveDays++;
-            if (consecutiveDays >= 6) {
+            if (consecutiveDays >= MAX_CONSECUTIVE_STUDY_DAYS) {
               pedagogicalWarnings.push(`⚠️ Ab ${dateStr}: ${consecutiveDays + 1} Tage ohne Pause - Burnout-Gefahr!`);
             }
           } else {
@@ -635,7 +660,7 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
             if (assessment.deadline) {
               const examDate = new Date(assessment.deadline);
               const twoWeeksBefore = new Date(examDate);
-              twoWeeksBefore.setDate(twoWeeksBefore.getDate() - 14);
+              twoWeeksBefore.setDate(twoWeeksBefore.getDate() - EXAM_REVIEW_PERIOD_DAYS);
               
               const sessionsBeforeExam = validatedSessions.filter(session => {
                 const sessionDate = new Date(session.date);

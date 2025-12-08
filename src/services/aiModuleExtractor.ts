@@ -8,6 +8,53 @@
 
 import OpenAI from 'openai';
 
+// REVIEW: Constants for validation
+const ECTS_MIN = 1;
+const ECTS_MAX = 30;
+const ECTS_DEFAULT = 6; // Standard module size
+const WORKLOAD_MIN = 30; // 1 ECTS minimum
+const WORKLOAD_MAX = 900; // 30 ECTS maximum
+const WORKLOAD_PER_ECTS = 30; // European standard: 1 ECTS = 30 hours
+const ASSESSMENT_WEIGHT_TOLERANCE = 0.1; // Allow 0.1% rounding error
+const CONTENT_MIN = 4;
+const CONTENT_MAX = 6;
+const COMPETENCIES_MIN = 3;
+const COMPETENCIES_MAX = 5;
+
+/**
+ * Ensures assessment weights sum to exactly 100% using largest remainder method
+ * This prevents rounding errors from causing weight sums != 100%
+ */
+function normalizeAssessmentWeights(assessments: Array<{ weight: number; [key: string]: any }>): typeof assessments {
+  const total = assessments.reduce((sum, a) => sum + a.weight, 0);
+  if (Math.abs(total - 100) < ASSESSMENT_WEIGHT_TOLERANCE) {
+    return assessments; // Already close enough
+  }
+  
+  // Calculate ideal weights and integer parts
+  const factor = 100 / total;
+  const idealWeights = assessments.map(a => a.weight * factor);
+  const integerParts = idealWeights.map(w => Math.floor(w));
+  const fractionalParts = idealWeights.map((w, i) => ({ index: i, fraction: w - integerParts[i] }));
+  
+  // Sort by fractional part descending
+  fractionalParts.sort((a, b) => b.fraction - a.fraction);
+  
+  // Distribute remaining points to largest remainders
+  let distributed = integerParts.reduce((sum, w) => sum + w, 0);
+  let i = 0;
+  while (distributed < 100 && i < fractionalParts.length) {
+    integerParts[fractionalParts[i].index]++;
+    distributed++;
+    i++;
+  }
+  
+  return assessments.map((a, index) => ({
+    ...a,
+    weight: integerParts[index]
+  }));
+}
+
 /**
  * Strukturierte Modul-Daten die von der KI extrahiert werden
  */
@@ -146,15 +193,15 @@ ANTI-HALLUCINATION RULES:
     }
     
     // REVIEW: Validate ECTS range (typical university modules: 1-30 ECTS)
-    if (!parsedData.ects || parsedData.ects < 1 || parsedData.ects > 30) {
-      console.warn(`ECTS außerhalb des normalen Bereichs: ${parsedData.ects}. Setze auf 6 (Standard).`);
-      parsedData.ects = 6; // Fallback to typical module size
+    if (!parsedData.ects || parsedData.ects < ECTS_MIN || parsedData.ects > ECTS_MAX) {
+      console.warn(`ECTS außerhalb des normalen Bereichs: ${parsedData.ects}. Setze auf ${ECTS_DEFAULT} (Standard).`);
+      parsedData.ects = ECTS_DEFAULT;
     }
     
     // REVIEW: Validate workload range (typical: 30h per ECTS, max 900h for 30 ECTS)
-    if (!parsedData.workload || parsedData.workload < 30 || parsedData.workload > 900) {
+    if (!parsedData.workload || parsedData.workload < WORKLOAD_MIN || parsedData.workload > WORKLOAD_MAX) {
       console.warn(`Workload außerhalb des normalen Bereichs: ${parsedData.workload}h. Berechne aus ECTS.`);
-      parsedData.workload = parsedData.ects * 30; // Fallback: Standard calculation
+      parsedData.workload = parsedData.ects * WORKLOAD_PER_ECTS;
     }
     
     // REVIEW: Validate assessments exist and weights sum to 100%
@@ -162,34 +209,29 @@ ANTI-HALLUCINATION RULES:
       throw new Error('Keine Prüfungen/Assessments gefunden. Bitte prüfe die Modulbeschreibung.');
     }
     
-    // REVIEW: Critical validation - assessment weights must sum to 100%
+    // REVIEW: Critical validation - assessment weights must sum to 100% (using largest remainder method)
     const totalWeight = parsedData.assessments.reduce((sum, a) => sum + (a.weight || 0), 0);
-    if (Math.abs(totalWeight - 100) > 0.1) { // Allow 0.1% tolerance for rounding
-      console.warn(`Assessment-Gewichtungen addieren sich zu ${totalWeight}% statt 100%. Normalisiere...`);
-      // Normalize weights to sum to 100%
-      const factor = 100 / totalWeight;
-      parsedData.assessments = parsedData.assessments.map(a => ({
-        ...a,
-        weight: Math.round(a.weight * factor)
-      }));
+    if (Math.abs(totalWeight - 100) > ASSESSMENT_WEIGHT_TOLERANCE) {
+      console.warn(`Assessment-Gewichtungen addieren sich zu ${totalWeight}% statt 100%. Normalisiere mit Largest Remainder Method...`);
+      parsedData.assessments = normalizeAssessmentWeights(parsedData.assessments);
     }
     
     // REVIEW: Validate content array size (4-6 items as specified in prompt)
     if (!parsedData.content || !Array.isArray(parsedData.content)) {
       console.warn('Keine Modulinhalte extrahiert. Setze leeres Array.');
       parsedData.content = [];
-    } else if (parsedData.content.length < 4 || parsedData.content.length > 6) {
-      console.warn(`Content-Array hat ${parsedData.content.length} Einträge (erwartet: 4-6). Begrenze...`);
-      parsedData.content = parsedData.content.slice(0, 6); // Take max 6
+    } else if (parsedData.content.length < CONTENT_MIN || parsedData.content.length > CONTENT_MAX) {
+      console.warn(`Content-Array hat ${parsedData.content.length} Einträge (erwartet: ${CONTENT_MIN}-${CONTENT_MAX}). Begrenze...`);
+      parsedData.content = parsedData.content.slice(0, CONTENT_MAX);
     }
     
     // REVIEW: Validate competencies array size (3-5 items as specified in prompt)
     if (!parsedData.competencies || !Array.isArray(parsedData.competencies)) {
       console.warn('Keine Kompetenzen extrahiert. Setze leeres Array.');
       parsedData.competencies = [];
-    } else if (parsedData.competencies.length < 3 || parsedData.competencies.length > 5) {
-      console.warn(`Competencies-Array hat ${parsedData.competencies.length} Einträge (erwartet: 3-5). Begrenze...`);
-      parsedData.competencies = parsedData.competencies.slice(0, 5); // Take max 5
+    } else if (parsedData.competencies.length < COMPETENCIES_MIN || parsedData.competencies.length > COMPETENCIES_MAX) {
+      console.warn(`Competencies-Array hat ${parsedData.competencies.length} Einträge (erwartet: ${COMPETENCIES_MIN}-${COMPETENCIES_MAX}). Begrenze...`);
+      parsedData.competencies = parsedData.competencies.slice(0, COMPETENCIES_MAX);
     }
 
     return parsedData as ExtractedModuleData;
