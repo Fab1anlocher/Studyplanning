@@ -4,36 +4,7 @@ import { ApiKeyPage } from './components/ApiKeyPage';
 import { ModuleUpload } from './components/ModuleUpload';
 import { WeeklySchedule } from './components/WeeklySchedule';
 import { StudyPlanGenerator } from './components/StudyPlanGenerator';
-
-interface TimeSlot {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-}
-
-interface Module {
-  id: string;
-  name: string;
-  ects: number;
-  workload: number;
-  examDate: string;
-  assessments: any[];
-  pdfName?: string;
-  extractedContent?: string;
-}
-
-// Props interface for step components
-interface StepComponentProps {
-  onNext: () => void;
-  onBack: () => void;
-  modules: Module[];
-  setModules: (modules: Module[]) => void;
-  timeSlots: TimeSlot[];
-  setTimeSlots: (slots: TimeSlot[]) => void;
-  apiKey: string;
-  setApiKey: (key: string) => void;
-}
+import { TimeSlot, Module } from './types';
 
 export default function App() {
   // For testing: Start at different steps based on URL params

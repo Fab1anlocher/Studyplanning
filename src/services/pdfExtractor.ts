@@ -7,37 +7,11 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { PDF_VALIDATION } from '../constants';
+import { isPDFByMagicNumber } from '../utils/validation';
 
 // PDF.js Worker konfigurieren - erforderlich für Performance und Stabilität
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-// REVIEW: Constants for validation
-const MAX_FILE_SIZE_MB = 50;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const MAX_PAGES = 200;
-const PDF_MAGIC_NUMBER = '%PDF-'; // PDF file header identifier
-
-/**
- * Validates if file is actually a PDF by checking magic number (header bytes)
- * PDFs start with %PDF- (25 50 44 46 2D in hex)
- * @param file - File to validate
- * @returns Promise<boolean> - true if valid PDF
- */
-async function isPDFByMagicNumber(file: File): Promise<boolean> {
-  try {
-    const arrayBuffer = await file.slice(0, 5).arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
-    // Check for %PDF- signature (0x25 0x50 0x44 0x46 0x2D)
-    return bytes.length >= 5 &&
-           bytes[0] === 0x25 && // %
-           bytes[1] === 0x50 && // P
-           bytes[2] === 0x44 && // D
-           bytes[3] === 0x46 && // F
-           bytes[4] === 0x2D;   // -
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Extrahiert den vollständigen Text aus einer PDF-Datei
@@ -65,8 +39,8 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   if (file.size === 0) {
     throw new Error('Die Datei ist leer (0 Bytes)');
   }
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: ${MAX_FILE_SIZE_MB}MB`);
+  if (file.size > PDF_VALIDATION.MAX_FILE_SIZE_BYTES) {
+    throw new Error(`Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: ${PDF_VALIDATION.MAX_FILE_SIZE_MB}MB`);
   }
   
   // REVIEW: File type validation with magic number check (more secure than MIME type alone)
@@ -99,10 +73,10 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     if (pdf.numPages === 0) {
       throw new Error('Die PDF enthält keine Seiten');
     }
-    if (pdf.numPages > MAX_PAGES) {
-      console.warn(`PDF hat ${pdf.numPages} Seiten (max: ${MAX_PAGES}). Verarbeite nur erste ${MAX_PAGES} Seiten.`);
+    if (pdf.numPages > PDF_VALIDATION.MAX_PAGES) {
+      console.warn(`PDF hat ${pdf.numPages} Seiten (max: ${PDF_VALIDATION.MAX_PAGES}). Verarbeite nur erste ${PDF_VALIDATION.MAX_PAGES} Seiten.`);
     }
-    const pagesToProcess = Math.min(pdf.numPages, MAX_PAGES);
+    const pagesToProcess = Math.min(pdf.numPages, PDF_VALIDATION.MAX_PAGES);
     
     // Alle Seiten parallel verarbeiten für bessere Performance
     const pagePromises = [];
@@ -129,8 +103,8 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     }
     
     // REVIEW: Warn if text seems too short (might indicate extraction issues)
-    if (fullText.trim().length < 100) {
-      console.warn('Extrahierter Text ist sehr kurz (<100 Zeichen). Prüfe ob die PDF korrekt ist.');
+    if (fullText.trim().length < PDF_VALIDATION.MIN_TEXT_LENGTH) {
+      console.warn(`Extrahierter Text ist sehr kurz (<${PDF_VALIDATION.MIN_TEXT_LENGTH} Zeichen). Prüfe ob die PDF korrekt ist.`);
     }
     
     console.log('PDF-Extraktion abgeschlossen, Gesamt:', fullText.length, 'Zeichen');
