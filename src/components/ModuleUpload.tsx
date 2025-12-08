@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Eye, Edit2, ChevronDown, ChevronUp, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, BookOpen, FileText, Calendar, ArrowRight, ArrowLeft, Check, Trash2, Edit2, ChevronDown, ChevronUp, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -42,7 +42,8 @@ interface ModuleUploadProps {
 export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' }: ModuleUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [showReview, setShowReview] = useState(false);
-  const [expandedExtraction, setExpandedExtraction] = useState<string | null>(null);
+  const [expandedContent, setExpandedContent] = useState<string | null>(null);
+  const [expandedCompetencies, setExpandedCompetencies] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -232,6 +233,104 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
             assessments: m.assessments.filter(a => a.id !== assessmentId)
           };
         }
+      }
+      return m;
+    }));
+  };
+
+  const updateAssessmentType = (moduleId: string, assessmentId: string, type: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        return {
+          ...m,
+          assessments: m.assessments.map(a => 
+            a.id === assessmentId ? { ...a, type } : a
+          )
+        };
+      }
+      return m;
+    }));
+  };
+
+  const updateAssessmentFormat = (moduleId: string, assessmentId: string, format: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        return {
+          ...m,
+          assessments: m.assessments.map(a => 
+            a.id === assessmentId ? { ...a, format } : a
+          )
+        };
+      }
+      return m;
+    }));
+  };
+
+  const updateContentTopic = (moduleId: string, index: number, value: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId && m.content) {
+        const newContent = [...m.content];
+        newContent[index] = value;
+        return { ...m, content: newContent };
+      }
+      return m;
+    }));
+  };
+
+  const deleteContentTopic = (moduleId: string, index: number) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId && m.content) {
+        return {
+          ...m,
+          content: m.content.filter((_, i) => i !== index)
+        };
+      }
+      return m;
+    }));
+  };
+
+  const addContentTopic = (moduleId: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        return {
+          ...m,
+          content: [...(m.content || []), 'Neues Thema']
+        };
+      }
+      return m;
+    }));
+  };
+
+  const updateCompetency = (moduleId: string, index: number, value: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId && m.competencies) {
+        const newCompetencies = [...m.competencies];
+        newCompetencies[index] = value;
+        return { ...m, competencies: newCompetencies };
+      }
+      return m;
+    }));
+  };
+
+  const deleteCompetency = (moduleId: string, index: number) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId && m.competencies) {
+        return {
+          ...m,
+          competencies: m.competencies.filter((_, i) => i !== index)
+        };
+      }
+      return m;
+    }));
+  };
+
+  const addCompetency = (moduleId: string) => {
+    setModules(modules.map(m => {
+      if (m.id === moduleId) {
+        return {
+          ...m,
+          competencies: [...(m.competencies || []), 'Neue Kompetenz']
+        };
       }
       return m;
     }));
@@ -504,58 +603,92 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
               
               <CardContent className="pt-6">
                 <div className="space-y-4">
-                  {/* PDF Extraction Viewer */}
-                  {module.extractedContent && (
+                  {/* Content/Topics Section - Collapsible and Editable */}
+                  {module.content && module.content.length > 0 && (
                     <Collapsible
-                      open={expandedExtraction === module.id}
-                      onOpenChange={() => setExpandedExtraction(expandedExtraction === module.id ? null : module.id)}
+                      open={expandedContent === module.id}
+                      onOpenChange={() => setExpandedContent(expandedContent === module.id ? null : module.id)}
                     >
                       <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="w-full mb-4">
-                          <Eye className="size-4 mr-2" />
-                          {expandedExtraction === module.id ? 'PDF-Extraktion ausblenden' : 'PDF-Extraktion anzeigen'}
-                          {expandedExtraction === module.id ? <ChevronUp className="size-4 ml-auto" /> : <ChevronDown className="size-4 ml-auto" />}
+                        <Button variant="outline" className="w-full mb-2">
+                          <BookOpen className="size-4 mr-2" />
+                          Inhalte & Themen ({module.content.length})
+                          {expandedContent === module.id ? <ChevronUp className="size-4 ml-auto" /> : <ChevronDown className="size-4 ml-auto" />}
                         </Button>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <div className="bg-gray-900 text-green-400 p-4 rounded-lg mb-4 font-mono text-sm max-h-64 overflow-y-auto">
-                          <pre className="whitespace-pre-wrap">{module.extractedContent}</pre>
+                        <div className="bg-blue-50 p-4 rounded-lg mb-4 space-y-2">
+                          {module.content.map((item, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <Input
+                                value={item}
+                                onChange={(e) => updateContentTopic(module.id, index, e.target.value)}
+                                className="bg-white text-sm"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteContentTopic(module.id, index)}
+                              >
+                                <Trash2 className="size-4 text-red-600" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2"
+                            onClick={() => addContentTopic(module.id)}
+                          >
+                            + Thema hinzufügen
+                          </Button>
                         </div>
-                        <p className="text-xs text-gray-500 mb-4 text-center">
-                          Dies ist der aus dem PDF extrahierte Rohtext. Die Werte oben wurden automatisch aus diesem Content generiert.
-                        </p>
                       </CollapsibleContent>
                     </Collapsible>
                   )}
                   
-                  {/* Content/Topics Section */}
-                  {module.content && module.content.length > 0 && (
-                    <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                      <h4 className="text-sm text-gray-900 mb-2 flex items-center gap-2">
-                        <BookOpen className="size-4" />
-                        Inhalte & Themen
-                      </h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                        {module.content.map((item, index) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {/* Competencies Section */}
+                  {/* Competencies Section - Collapsible and Editable */}
                   {module.competencies && module.competencies.length > 0 && (
-                    <div className="bg-green-50 p-4 rounded-lg mb-4">
-                      <h4 className="text-sm text-gray-900 mb-2 flex items-center gap-2">
-                        <CheckCircle2 className="size-4" />
-                        Lernziele & Kompetenzen
-                      </h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                        {module.competencies.map((item, index) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    <Collapsible
+                      open={expandedCompetencies === module.id}
+                      onOpenChange={() => setExpandedCompetencies(expandedCompetencies === module.id ? null : module.id)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button variant="outline" className="w-full mb-4">
+                          <CheckCircle2 className="size-4 mr-2" />
+                          Lernziele & Kompetenzen ({module.competencies.length})
+                          {expandedCompetencies === module.id ? <ChevronUp className="size-4 ml-auto" /> : <ChevronDown className="size-4 ml-auto" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="bg-green-50 p-4 rounded-lg mb-4 space-y-2">
+                          {module.competencies.map((item, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <Input
+                                value={item}
+                                onChange={(e) => updateCompetency(module.id, index, e.target.value)}
+                                className="bg-white text-sm"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteCompetency(module.id, index)}
+                              >
+                                <Trash2 className="size-4 text-red-600" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full mt-2"
+                            onClick={() => addCompetency(module.id)}
+                          >
+                            + Kompetenz hinzufügen
+                          </Button>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   )}
                   
                   
@@ -589,8 +722,20 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                         </div>
                         
                         <div className="md:col-span-3">
-                          <div className="text-gray-900">{assessment.type}</div>
-                          <div className="text-xs text-gray-600">{assessment.format}</div>
+                          <div className="space-y-1">
+                            <Input
+                              value={assessment.type}
+                              onChange={(e) => updateAssessmentType(module.id, assessment.id, e.target.value)}
+                              className="text-sm bg-white"
+                              placeholder="Prüfungstyp"
+                            />
+                            <Input
+                              value={assessment.format}
+                              onChange={(e) => updateAssessmentFormat(module.id, assessment.id, e.target.value)}
+                              className="text-xs bg-white"
+                              placeholder="Format"
+                            />
+                          </div>
                         </div>
                         
                         <div className="md:col-span-2">
@@ -613,13 +758,13 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                               Prüfungsdatum *
                             </Label>
                             <div className="flex items-center gap-2">
-                              <Calendar className="size-4 text-gray-400" />
+                              <Calendar className="size-4 text-gray-400 flex-shrink-0" />
                               <Input
                                 id={`deadline-${assessment.id}`}
                                 type="date"
                                 value={assessment.deadline}
                                 onChange={(e) => updateAssessmentDeadline(module.id, assessment.id, e.target.value)}
-                                className={!assessment.deadline ? 'border-orange-400' : 'border-green-400'}
+                                className={`min-w-[150px] ${!assessment.deadline ? 'border-orange-400' : 'border-green-400'}`}
                               />
                             </div>
                           </div>
