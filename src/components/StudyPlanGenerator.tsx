@@ -185,6 +185,26 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const generatePlan = useCallback(async () => {
     setIsGenerating(true);
     
+    // REVIEW: Input validation - ensure we have modules and time slots
+    if (!actualModules || actualModules.length === 0) {
+      console.error('[StudyPlanGenerator] Keine Module vorhanden');
+      setIsGenerating(false);
+      return;
+    }
+    
+    if (!actualTimeSlots || actualTimeSlots.length === 0) {
+      console.error('[StudyPlanGenerator] Keine Zeitslots vorhanden');
+      setIsGenerating(false);
+      return;
+    }
+    
+    // REVIEW: API Key validation
+    if (!propApiKey || propApiKey.trim().length === 0) {
+      console.error('[StudyPlanGenerator] Kein API-Key vorhanden');
+      setIsGenerating(false);
+      return;
+    }
+    
     // Find the last exam date from all modules
     const findLastExamDate = () => {
       let lastDate = new Date();
@@ -193,18 +213,47 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
           module.assessments.forEach((assessment: { deadline?: string }) => {
             if (assessment.deadline) {
               const examDate = new Date(assessment.deadline);
-              if (examDate > lastDate) {
+              // REVIEW: Validate exam date is in the future and reasonable (max 2 years)
+              const now = new Date();
+              const twoYearsFromNow = new Date();
+              twoYearsFromNow.setFullYear(now.getFullYear() + 2);
+              
+              if (examDate > now && examDate <= twoYearsFromNow && examDate > lastDate) {
                 lastDate = examDate;
+              } else if (examDate <= now) {
+                console.warn(`[StudyPlanGenerator] Prüfungsdatum ${assessment.deadline} liegt in der Vergangenheit. Wird ignoriert.`);
+              } else if (examDate > twoYearsFromNow) {
+                console.warn(`[StudyPlanGenerator] Prüfungsdatum ${assessment.deadline} liegt mehr als 2 Jahre in der Zukunft. Wird ignoriert.`);
               }
             }
           });
         }
       });
+      
+      // REVIEW: If no valid exam date found, default to 16 weeks (one semester)
+      if (lastDate <= new Date()) {
+        console.warn('[StudyPlanGenerator] Keine gültigen Prüfungstermine gefunden. Nutze Standard-Semester (16 Wochen).');
+        lastDate = new Date();
+        lastDate.setDate(lastDate.getDate() + (16 * 7)); // 16 weeks
+      }
+      
       return lastDate;
     };
     
     const lastExamDate = findLastExamDate();
     const startDate = new Date(); // Start from today
+    
+    // REVIEW: Validate date range is reasonable (min 1 week, max 1 year)
+    const daysDiff = Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff < 7) {
+      console.warn('[StudyPlanGenerator] Zeitraum zu kurz (<7 Tage). Verlängere auf 4 Wochen.');
+      lastExamDate.setDate(lastExamDate.getDate() + 21); // Add 3 more weeks
+    } else if (daysDiff > 365) {
+      console.warn('[StudyPlanGenerator] Zeitraum zu lang (>365 Tage). Begrenze auf 1 Jahr.');
+      const oneYearFromNow = new Date(startDate);
+      oneYearFromNow.setFullYear(startDate.getFullYear() + 1);
+      lastExamDate.setTime(oneYearFromNow.getTime());
+    }
     
     try {
       // Initialize OpenAI client
@@ -237,7 +286,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
         }))
       };
       
-      // Gold-standard prompt with advanced prompt engineering for DeepSeek
+      // Gold-standard prompt with advanced prompt engineering and defensive rules
       const systemPrompt = `Du bist ein Elite-Lerncoach und KI-Spezialist für personalisierte Lernplanung mit tiefem Verständnis von:
 - Lernpsychologie & kognitiven Neurowissenschaften
 - Evidenzbasierten Lernstrategien (Spaced Repetition, Retrieval Practice, Interleaving)
@@ -252,6 +301,50 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
 3. Die extrahierten Modulinhalte & Kompetenzen intelligent strukturiert
 4. Die optimale Lernmethode für jedes Thema/jede Kompetenz wählt
 5. Einen realistischen, motivierenden Weg zum Erfolg bietet
+
+════════════════════════════════════════════════════════════════════
+
+⚠️ KRITISCHE DEFENSIVE REGELN (STRIKT EINHALTEN):
+
+1. ZEITSLOT-VALIDIERUNG:
+   ✓ Nutze NUR die bereitgestellten availableTimeSlots (Tag, Startzeit, Endzeit)
+   ✓ KEINE erfundenen Zeitfenster außerhalb der angegebenen Slots
+   ✓ KEINE Sessions kürzer als 1 Stunde oder länger als 4 Stunden
+   ✓ Startzeit < Endzeit (logische Zeitreihenfolge)
+
+2. DATUM-VALIDIERUNG:
+   ✓ Alle Sessions MÜSSEN zwischen ${startDate.toISOString().split('T')[0]} und ${lastExamDate.toISOString().split('T')[0]} liegen
+   ✓ KEINE Daten in der Vergangenheit
+   ✓ KEINE Daten nach dem letzten Prüfungstermin
+   ✓ Datumsformat: YYYY-MM-DD (ISO 8601)
+
+3. MODUL-VALIDIERUNG:
+   ✓ Nutze NUR die bereitgestellten Modulnamen (exakte Schreibweise)
+   ✓ KEINE erfundenen Module oder Themen
+   ✓ Topics MÜSSEN aus dem "content"-Array stammen
+   ✓ Competencies MÜSSEN aus dem "competencies"-Array stammen
+
+4. SESSION-ANZAHL-VALIDIERUNG:
+   ✓ MINIMUM: ${Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length)} Sessions
+   ✓ MAXIMUM: ${Math.min(200, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length * 2)} Sessions
+   ✓ Falls zu wenig Slots: Nutze jeden Slot mehrfach pro Woche
+   ✓ Verteile Sessions gleichmäßig über den gesamten Zeitraum
+
+5. LERNMETHODEN-VALIDIERUNG:
+   ✓ Nutze NUR diese Methoden: "Spaced Repetition", "Active Recall", "Deep Work", "Pomodoro", "Feynman Technik", "Interleaving", "Practice Testing"
+   ✓ KEINE erfundenen oder anderen Methodennamen
+   ✓ Methode muss zum Inhalt passen (siehe Framework unten)
+
+6. PAUSEN & KOGNITIVE LAST:
+   ✓ KEINE Sessions an mehr als 6 aufeinanderfolgenden Tagen
+   ✓ Mindestens 1 pausenfreier Tag pro Woche (idealerweise Sonntag)
+   ✓ Nicht mehr als 2 Sessions desselben Moduls an einem Tag
+   ✓ Wechsel zwischen Modulen für bessere Retention (Interleaving)
+
+7. PRÜFUNGSVORBEREITUNG:
+   ✓ Letzte 2 Wochen vor Prüfung: NUR Wiederholung, KEIN neuer Stoff
+   ✓ 1 Woche vor Prüfung: Daily Practice Testing + Active Recall
+   ✓ KEINE neuen Themen 3 Tage vor Prüfung
 
 ════════════════════════════════════════════════════════════════════
 
@@ -344,19 +437,16 @@ Wähle für JEDE Session die optimale Methode basierend auf:
 Erstelle für JEDES verfügbare Zeitfenster eine optimierte Session:
 
 {
-  "date": "YYYY-MM-DD",
+  "date": "YYYY-MM-DD", // MUSS zwischen startDate und endDate liegen
   "startTime": "HH:MM", // EXAKT aus timeSlots
   "endTime": "HH:MM",   // EXAKT aus timeSlots
-  "module": "Exakter Modulname",
-  "topic": "Spezifisches Thema aus 'content' (z.B. 'Prozessmodellierung mit BPMN 2.0')",
+  "module": "Exakter Modulname", // MUSS aus bereitgestellten Modulen stammen
+  "topic": "Spezifisches Thema aus 'content'",
   "description": "2-3 Sätze: Was GENAU tun, wie vorgehen, welches Ergebnis erwarten",
   "learningMethod": "Gewählte Methode aus obiger Liste",
-  "methodRationale": "1 Satz: WARUM diese Methode für dieses Thema",
-  "contentTopics": ["Topic 1 aus content", "Topic 2 aus content"],
-  "competencies": ["Kompetenz 1", "Kompetenz 2"], // Aus competencies
-  "studyTips": "Konkrete Handlungsanweisungen (z.B. 'Erstelle BPMN-Diagramm für Online-Shop-Prozess', 'Implementiere Factory Pattern in Java')",
-  "resources": "Empfohlene Ressourcen (z.B. 'Kapitel 3 Skript, YouTube: BPMN Tutorial')",
-  "assessmentPrep": "Bezug zur Prüfung (z.B. '20% der Klausur, Typ: Diagramm erstellen')"
+  "contentTopics": ["Topic 1 aus content", "Topic 2 aus content"], // NUR aus bereitgestellten content
+  "competencies": ["Kompetenz 1", "Kompetenz 2"], // NUR aus bereitgestellten competencies
+  "studyTips": "Konkrete Handlungsanweisungen"
 }
 
 Gib zurück:
@@ -372,52 +462,19 @@ Gib zurück:
 
 ════════════════════════════════════════════════════════════════════
 
-⚠️ KRITISCHE REGELN:
+✅ FINAL VALIDATION CHECKLIST vor Ausgabe:
+□ Minimale Anzahl Sessions: ${Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length)}
+□ Alle Session-Daten zwischen ${startDate.toISOString().split('T')[0]} und ${lastExamDate.toISOString().split('T')[0]}
+□ Alle Zeitfenster stammen aus availableTimeSlots
+□ Alle Module-Namen existieren in bereitgestellten Modulen
+□ Alle Topics aus "content", alle Competencies aus "competencies"
+□ Alle Lernmethoden aus erlaubter Liste
+□ Mindestens 1 Pausentag pro Woche
+□ Letzte 2 Wochen vor Prüfung: Nur Wiederholung
+□ Keine Sessions > 4h Dauer
+□ JSON ist valide und vollständig
 
-1. ✅ NUTZE NUR die bereitgestellten availableTimeSlots (Tag, Startzeit, Endzeit)
-2. ✅ WIEDERHOLE JEDEN Slot JEDE Woche vom startDate bis endDate
-   BEISPIEL-ALGORITHMUS:
-   
-   Für jeden timeSlot in availableTimeSlots:
-     currentDate = startDate
-     while currentDate <= endDate:
-       if currentDate.wochentag == timeSlot.day:
-         erstelle Session für currentDate mit timeSlot.startTime und timeSlot.endTime
-       currentDate += 1 Tag
-   
-3. ✅ MINIMALE SESSION-ANZAHL: ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length} Sessions
-4. ✅ BEGINNE am ${startDate.toISOString().split('T')[0]} und plane bis ${lastExamDate.toISOString().split('T')[0]}
-5. ✅ VERWENDE die extrahierten content & competencies direkt
-6. ✅ WÄHLE Methoden basierend auf Inhalt & Assessment-Typ
-7. ✅ BERÜCKSICHTIGE Assessment-Gewichtungen (weight) für Zeitverteilung
-8. ✅ VERMEIDE Überlastung (max 3h intensive Sessions)
-9. ✅ ERSTELLE realistische, motivierende Sessions
-10. ✅ Der Plan muss das GESAMTE Semester abdecken, nicht nur eine Woche!
-
-════════════════════════════════════════════════════════════════════
-
-🚀 QUALITÄTSKRITERIEN (erfülle alle):
-□ Minimale Anzahl Sessions: ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length} (Wochen × Slots)
-□ Jede Session nutzt EXAKT einen der availableTimeSlots
-□ Sessions decken gesamten Zeitraum ab (${startDate.toISOString().split('T')[0]} bis ${lastExamDate.toISOString().split('T')[0]})
-□ Jede Session hat klares, messbares Lernziel
-□ Topics stammen aus den bereitgestellten Inhalten (content)
-□ Kompetenzen werden gezielt entwickelt (competencies)
-□ Methoden sind evidenzbasiert gewählt
-□ Prüfungstermine sind zentral berücksichtigt
-□ Plan ist motivierend & realistisch umsetzbar
-□ KEINE Lücken im Plan - kontinuierliche Planung bis zur letzten Prüfung!
-
-KONKRETES BEISPIEL für korrekte Planung:
-Wenn startDate = "2024-12-08" und endDate = "2025-02-10" (9 Wochen)
-Und availableTimeSlots = [{ day: "Montag", startTime: "17:00", endTime: "20:00" }]
-Dann erwarte ich MINDESTENS 9 Sessions:
-- 2024-12-09 17:00-20:00 (erster Montag)
-- 2024-12-16 17:00-20:00 (zweiter Montag)
-- 2024-12-23 17:00-20:00 (dritter Montag)
-- ... bis 2025-02-10
-
-Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN Lernplan für das gesamte Semester! 🎯`;
+Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
 
       const userPrompt = `Erstelle meinen personalisierten Lernplan für das GESAMTE Semester:\n\n${JSON.stringify(planningData, null, 2)}
 
@@ -451,15 +508,61 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
       
       console.log('KI-generierte Sessions:', sessions);
       
-      // Ensure all sessions have IDs
-      const sessionsWithIds = Array.isArray(sessions) 
-        ? sessions.map((session, index) => ({
-            ...session,
-            id: (index + 1).toString()
-          }))
-        : [];
+      // REVIEW: Validate AI-generated sessions for critical defensive checks
+      const validatedSessions: StudySession[] = [];
+      const minDate = new Date(startDate);
+      const maxDate = new Date(lastExamDate);
+      const allowedMethods = ['Spaced Repetition', 'Active Recall', 'Deep Work', 'Pomodoro', 'Feynman Technik', 'Interleaving', 'Practice Testing'];
+      const moduleNames = new Set(actualModules.map(m => m.name));
       
-      setStudySessions(sessionsWithIds);
+      sessions.forEach((session, index) => {
+        // Validate date range
+        const sessionDate = new Date(session.date);
+        if (sessionDate < minDate || sessionDate > maxDate) {
+          console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültiges Datum: ${session.date}. Wird übersprungen.`);
+          return;
+        }
+        
+        // Validate module name exists
+        if (!moduleNames.has(session.module)) {
+          console.warn(`[StudyPlanGenerator] Session ${index + 1} hat unbekanntes Modul: ${session.module}. Wird übersprungen.`);
+          return;
+        }
+        
+        // Validate learning method
+        if (session.learningMethod && !allowedMethods.includes(session.learningMethod)) {
+          console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültige Lernmethode: ${session.learningMethod}. Setze auf "Active Recall".`);
+          session.learningMethod = 'Active Recall';
+        }
+        
+        // Validate time format
+        const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(session.startTime) || !timeRegex.test(session.endTime)) {
+          console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültiges Zeitformat. Wird übersprungen.`);
+          return;
+        }
+        
+        // Ensure session has required fields
+        if (!session.topic || !session.description) {
+          console.warn(`[StudyPlanGenerator] Session ${index + 1} fehlen erforderliche Felder. Wird übersprungen.`);
+          return;
+        }
+        
+        validatedSessions.push({
+          ...session,
+          id: (validatedSessions.length + 1).toString()
+        });
+      });
+      
+      console.log(`[StudyPlanGenerator] Validierung: ${validatedSessions.length}/${sessions.length} Sessions gültig`);
+      
+      // REVIEW: Warn if too few sessions generated
+      const expectedMinSessions = Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length);
+      if (validatedSessions.length < expectedMinSessions * 0.5) {
+        console.warn(`[StudyPlanGenerator] Zu wenige Sessions generiert: ${validatedSessions.length} (erwartet: ${expectedMinSessions})`);
+      }
+      
+      setStudySessions(validatedSessions);
       setPlanGenerated(true);
       setIsGenerating(false);
     } catch (error) {

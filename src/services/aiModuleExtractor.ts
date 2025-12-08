@@ -51,41 +51,68 @@ export async function extractModuleDataWithAI(
     dangerouslyAllowBrowser: true
   });
 
+  // REVIEW: Prompt Hardening - Added explicit constraints and validation rules to reduce hallucinations
   const systemPrompt = `Du bist ein KI-Assistent, der Modulbeschreibungen von Hochschulen analysiert.
 Extrahiere NUR folgende Informationen und gib sie als kompaktes JSON zurück:
 
 1. title: Modulname/Modultitel
+   - MUSS: Exakt wie im Dokument angegeben (keine Übersetzungen, keine Umformulierungen)
+   - FALLBACK: Wenn nicht gefunden, nutze den Dateinamen ohne .pdf Extension
+
 2. ects: ECTS-Punkte (Zahl)
-3. workload: Workload in Stunden (Zahl, falls nicht angegeben: ECTS × 30)
+   - MUSS: Ganzzahl zwischen 1 und 30
+   - FALLBACK: Falls nicht angegeben, verwende 6 (Standard-Modulumfang)
+   - VALIDIERUNG: Prüfe Begriffe "ECTS", "Credits", "CP", "Kreditpunkte"
+
+3. workload: Workload in Stunden (Zahl)
+   - MUSS: Ganzzahl zwischen 30 und 900
+   - BERECHNUNG: Falls nicht explizit angegeben, nutze ECTS × 30 (Standard: 1 ECTS = 30h)
+   - VALIDIERUNG: Suche nach "Workload", "Arbeitsaufwand", "Arbeitsstunden", "Zeitaufwand"
+
 4. assessments: Array von Kompetenznachweisen mit:
    - type: z.B. "Schriftliche Prüfung", "Semesterarbeit", "Projekt", "Präsentation"
-   - weight: Gewichtung in % (Zahl)
-   - format: "Einzelarbeit" oder "Gruppenarbeit"
-   - deadline: Prüfungsdatum falls angegeben (Format: YYYY-MM-DD)
+     * MUSS: Verwende exakte Bezeichnung aus dem Dokument
+     * KEINE erfundenen Prüfungsformen
+   - weight: Gewichtung in % (Ganzzahl, 0-100)
+     * KRITISCH: Alle weights MÜSSEN sich EXAKT zu 100% addieren
+     * Falls nur 1 Assessment: weight = 100
+     * Falls keine Gewichtung angegeben: Verteile gleichmäßig (z.B. 2 Assessments → je 50%)
+   - format: EXAKT "Einzelarbeit" ODER "Gruppenarbeit" (keine anderen Werte!)
+     * FALLBACK: Wenn unklar, verwende "Einzelarbeit" (Standardannahme)
+   - deadline: Prüfungsdatum falls EXPLIZIT angegeben (Format: YYYY-MM-DD)
+     * NUR wenn konkretes Datum im Dokument steht
+     * KEINE geschätzten oder erfundenen Daten
+     * Leer lassen wenn nicht vorhanden
+
 5. content: Array der 4-6 WICHTIGSTEN Modulinhalte/Themen (nur die für Lernplanung relevantesten)
+   - MINIMUM: 4 Themen, MAXIMUM: 6 Themen (strikt einhalten!)
+   - Fokus auf prüfungsrelevante Inhalte
+   - Kurz und prägnant (z.B. "Prozessmodellierung", "Prozessoptimierung")
+   - KEINE Wiederholungen, KEINE Füllwörter
+   - Suche in Abschnitten: "Inhalt", "Modulinhalte", "Themen", "Lerneinheiten"
+
 6. competencies: Array der 3-5 WICHTIGSTEN Lernziele/Kompetenzen (nur die für Lernplanung relevantesten)
+   - MINIMUM: 3 Kompetenzen, MAXIMUM: 5 Kompetenzen (strikt einhalten!)
+   - Fokus auf messbare, prüfungsrelevante Fähigkeiten
+   - Kurz und prägnant formuliert
+   - KEINE Wiederholungen, KEINE vagen Aussagen
+   - Suche in Abschnitten: "Kompetenzen", "Lernziele", "Die Studierenden können", "Qualifikationsziele"
 
-Suche gezielt nach den Abschnitten:
-- "Kompetenznachweis" oder "Prüfung" für assessments
-- "ECTS" oder "Credits" für Punkte
-- "Workload" oder "Arbeitsaufwand" für Stunden
-- "Inhalt" oder "Modulinhalte" oder "Themen" für content
-- "Kompetenzen" oder "Lernziele" oder "Die Studierenden können" für competencies
+KRITISCHE VALIDIERUNGSREGELN:
+✓ title: NIEMALS leer, NIEMALS "Modul" oder Platzhalter
+✓ ects: MUSS zwischen 1-30 liegen (typisch: 3-12)
+✓ workload: MUSS zwischen 30-900 liegen (typisch: 90-360)
+✓ assessments: MINDESTENS 1 Assessment, weight-Summe EXAKT 100%
+✓ content: EXAKT 4-6 Einträge (nicht mehr, nicht weniger)
+✓ competencies: EXAKT 3-5 Einträge (nicht mehr, nicht weniger)
+✓ Gib NUR valides JSON zurück, KEINE Erklärungen, KEIN Markdown, KEINE Kommentare
 
-Wichtig für content:
-- NUR 4-6 Hauptthemen (keine vollständige Auflistung)
-- Fokus auf prüfungsrelevante Inhalte
-- Kurz und prägnant (z.B. "Prozessmodellierung", "Prozessoptimierung")
-
-Wichtig für competencies:
-- NUR 3-5 Hauptkompetenzen (keine vollständige Liste)
-- Fokus auf messbare, prüfungsrelevante Fähigkeiten
-- Kurz und prägnant formuliert
-
-Wichtig:
-- Gewichtungen müssen sich zu 100% addieren
-- Falls nur eine Prüfung: weight = 100
-- Gib NUR valides JSON zurück, keine Erklärungen`;
+ANTI-HALLUCINATION RULES:
+- Erfinde KEINE Daten die nicht im Text stehen
+- Bei Unsicherheit: Nutze FALLBACK-Werte (siehe oben)
+- KEINE Annahmen über Prüfungstermine
+- KEINE künstlich aufgeblähten Listen
+- Wenn ein Feld fehlt: Nutze vernünftigen Default statt zu raten`;
 
   try {
     // Text auf 12.000 Zeichen begrenzen für schnellere Verarbeitung
@@ -112,9 +139,57 @@ Wichtig:
 
     const parsedData = JSON.parse(content);
     
-    // Validierung der extrahierten Daten
-    if (!parsedData.title || !parsedData.ects || !parsedData.workload) {
-      throw new Error('Unvollständige Daten von der KI erhalten');
+    // REVIEW: Enhanced validation with specific error messages and boundary checks
+    // Validate title
+    if (!parsedData.title || parsedData.title.trim().length === 0) {
+      throw new Error('Kein Modultitel extrahiert. PDF möglicherweise unlesbar oder formatiert.');
+    }
+    
+    // REVIEW: Validate ECTS range (typical university modules: 1-30 ECTS)
+    if (!parsedData.ects || parsedData.ects < 1 || parsedData.ects > 30) {
+      console.warn(`ECTS außerhalb des normalen Bereichs: ${parsedData.ects}. Setze auf 6 (Standard).`);
+      parsedData.ects = 6; // Fallback to typical module size
+    }
+    
+    // REVIEW: Validate workload range (typical: 30h per ECTS, max 900h for 30 ECTS)
+    if (!parsedData.workload || parsedData.workload < 30 || parsedData.workload > 900) {
+      console.warn(`Workload außerhalb des normalen Bereichs: ${parsedData.workload}h. Berechne aus ECTS.`);
+      parsedData.workload = parsedData.ects * 30; // Fallback: Standard calculation
+    }
+    
+    // REVIEW: Validate assessments exist and weights sum to 100%
+    if (!parsedData.assessments || !Array.isArray(parsedData.assessments) || parsedData.assessments.length === 0) {
+      throw new Error('Keine Prüfungen/Assessments gefunden. Bitte prüfe die Modulbeschreibung.');
+    }
+    
+    // REVIEW: Critical validation - assessment weights must sum to 100%
+    const totalWeight = parsedData.assessments.reduce((sum, a) => sum + (a.weight || 0), 0);
+    if (Math.abs(totalWeight - 100) > 0.1) { // Allow 0.1% tolerance for rounding
+      console.warn(`Assessment-Gewichtungen addieren sich zu ${totalWeight}% statt 100%. Normalisiere...`);
+      // Normalize weights to sum to 100%
+      const factor = 100 / totalWeight;
+      parsedData.assessments = parsedData.assessments.map(a => ({
+        ...a,
+        weight: Math.round(a.weight * factor)
+      }));
+    }
+    
+    // REVIEW: Validate content array size (4-6 items as specified in prompt)
+    if (!parsedData.content || !Array.isArray(parsedData.content)) {
+      console.warn('Keine Modulinhalte extrahiert. Setze leeres Array.');
+      parsedData.content = [];
+    } else if (parsedData.content.length < 4 || parsedData.content.length > 6) {
+      console.warn(`Content-Array hat ${parsedData.content.length} Einträge (erwartet: 4-6). Begrenze...`);
+      parsedData.content = parsedData.content.slice(0, 6); // Take max 6
+    }
+    
+    // REVIEW: Validate competencies array size (3-5 items as specified in prompt)
+    if (!parsedData.competencies || !Array.isArray(parsedData.competencies)) {
+      console.warn('Keine Kompetenzen extrahiert. Setze leeres Array.');
+      parsedData.competencies = [];
+    } else if (parsedData.competencies.length < 3 || parsedData.competencies.length > 5) {
+      console.warn(`Competencies-Array hat ${parsedData.competencies.length} Einträge (erwartet: 3-5). Begrenze...`);
+      parsedData.competencies = parsedData.competencies.slice(0, 5); // Take max 5
     }
 
     return parsedData as ExtractedModuleData;

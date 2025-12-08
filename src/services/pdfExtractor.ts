@@ -17,11 +17,36 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
  * Verwendet PDF.js um den Text aus allen Seiten zu extrahieren.
  * Der Text wird dann für die KI-Analyse verwendet.
  * 
+ * DEFENSIVE GUARDS:
+ * - Prüft auf leere/null Dateien
+ * - Begrenzt maximale Dateigröße (50MB)
+ * - Begrenzt maximale Seitenanzahl (200 Seiten)
+ * - Validiert PDF-Format
+ * 
  * @param file - Die hochgeladene PDF-Datei (File object vom Browser)
  * @returns Der extrahierte Text aus allen Seiten der PDF
- * @throws Error wenn die PDF nicht gelesen werden kann
+ * @throws Error wenn die PDF nicht gelesen werden kann oder Limits überschreitet
  */
 export async function extractTextFromPDF(file: File): Promise<string> {
+  // REVIEW: Input validation guards
+  if (!file) {
+    throw new Error('Keine Datei angegeben');
+  }
+  
+  // REVIEW: File size validation (max 50MB to prevent memory issues)
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+  if (file.size === 0) {
+    throw new Error('Die Datei ist leer (0 Bytes)');
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(`Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum: 50MB`);
+  }
+  
+  // REVIEW: File type validation
+  if (!file.type || file.type !== 'application/pdf') {
+    throw new Error(`Ungültiger Dateityp: ${file.type || 'unbekannt'}. Nur PDF-Dateien werden unterstützt.`);
+  }
+  
   try {
     console.log('Starte PDF-Extraktion für:', file.name);
     
@@ -37,9 +62,19 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     const pdf = await loadingTask.promise;
     console.log('PDF geladen, Seiten:', pdf.numPages);
     
+    // REVIEW: Page count validation (max 200 pages to prevent excessive processing)
+    const MAX_PAGES = 200;
+    if (pdf.numPages === 0) {
+      throw new Error('Die PDF enthält keine Seiten');
+    }
+    if (pdf.numPages > MAX_PAGES) {
+      console.warn(`PDF hat ${pdf.numPages} Seiten (max: ${MAX_PAGES}). Verarbeite nur erste ${MAX_PAGES} Seiten.`);
+    }
+    const pagesToProcess = Math.min(pdf.numPages, MAX_PAGES);
+    
     // Alle Seiten parallel verarbeiten für bessere Performance
     const pagePromises = [];
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    for (let pageNum = 1; pageNum <= pagesToProcess; pageNum++) {
       pagePromises.push(
         pdf.getPage(pageNum).then(async (page) => {
           const textContent = await page.getTextContent();
@@ -55,6 +90,16 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     // Alle Seiten gleichzeitig verarbeiten
     const pageTexts = await Promise.all(pagePromises);
     const fullText = pageTexts.join('\n\n');
+    
+    // REVIEW: Validate extracted text is not empty
+    if (!fullText || fullText.trim().length === 0) {
+      throw new Error('Kein Text in der PDF gefunden. Die PDF könnte verschlüsselt, gescannt oder beschädigt sein.');
+    }
+    
+    // REVIEW: Warn if text seems too short (might indicate extraction issues)
+    if (fullText.trim().length < 100) {
+      console.warn('Extrahierter Text ist sehr kurz (<100 Zeichen). Prüfe ob die PDF korrekt ist.');
+    }
     
     console.log('PDF-Extraktion abgeschlossen, Gesamt:', fullText.length, 'Zeichen');
     return fullText.trim();
