@@ -72,7 +72,7 @@ export function isValidAPIKey(apiKey: string): boolean {
  * Validates module title is not empty
  */
 export function isValidModuleTitle(title: string): boolean {
-  return title && title.trim().length > 0;
+  return Boolean(title && title.trim().length > 0);
 }
 
 /**

@@ -9,7 +9,7 @@ import { StudySession, Module } from '../types';
 /**
  * Exports study sessions to CSV format (Excel-compatible)
  */
-export function exportSessionsToCSV(sessions: StudySession[], modules: Module[]): void {
+export function exportSessionsToCSV(sessions: StudySession[]): void {
   // Create CSV header
   const headers = ['Datum', 'Start', 'Ende', 'Modul', 'Thema', 'Beschreibung', 'Lernmethode'];
   

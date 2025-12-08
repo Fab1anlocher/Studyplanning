@@ -36,7 +36,7 @@ export function normalizeAssessmentWeights<T extends { weight: number }>(
   const integerParts = idealWeights.map(w => Math.floor(w));
   const fractionalParts = idealWeights.map((w, i) => ({ 
     index: i, 
-    fraction: w - integerParts[i] 
+    fraction: w - (integerParts[i] ?? 0)
   }));
   
   // Sort by fractional part descending
@@ -46,14 +46,20 @@ export function normalizeAssessmentWeights<T extends { weight: number }>(
   let distributed = integerParts.reduce((sum, w) => sum + w, 0);
   let i = 0;
   while (distributed < 100 && i < fractionalParts.length) {
-    integerParts[fractionalParts[i].index]++;
+    const fracPart = fractionalParts[i];
+    if (fracPart && fracPart.index >= 0 && fracPart.index < integerParts.length) {
+      const currentValue = integerParts[fracPart.index];
+      if (currentValue !== undefined) {
+        integerParts[fracPart.index] = currentValue + 1;
+      }
+    }
     distributed++;
     i++;
   }
   
   return assessments.map((a, index) => ({
     ...a,
-    weight: integerParts[index]
+    weight: integerParts[index] ?? 0
   }));
 }
 
@@ -78,5 +84,5 @@ export function truncateText(text: string, maxLength: number): string {
  * Generates a unique ID
  */
 export function generateUniqueId(): string {
-  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  return Date.now().toString() + Math.random().toString(36).substring(2, 11);
 }

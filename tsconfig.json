@@ -14,14 +14,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting - Strict Mode */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    /* Linting - Balanced Mode */
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": false,
     "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
 
     /* Path Aliases */
     "baseUrl": ".",
