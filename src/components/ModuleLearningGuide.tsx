@@ -426,7 +426,6 @@ ${module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.w
                 <p className="text-gray-500">Keine spezifischen Tools empfohlen.</p>
               )}
             </CardContent>
-            </CardContent>
           </Card>
 
           {/* Exam Prep Timeline - Separate for each assessment */}
@@ -439,16 +438,24 @@ ${module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.w
                 </CardTitle>
                 <CardDescription>
                   {prep.format && <Badge variant="outline" className="mr-2">{prep.format}</Badge>}
-                  {prep.deadline && (
-                    <span className="text-sm text-gray-600">
-                      Deadline: {new Date(prep.deadline).toLocaleDateString('de-DE', { 
-                        weekday: 'long', 
-                        day: '2-digit', 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })}
-                    </span>
-                  )}
+                  {prep.deadline && (() => {
+                    try {
+                      const date = new Date(prep.deadline);
+                      if (isNaN(date.getTime())) return null;
+                      return (
+                        <span className="text-sm text-gray-600">
+                          Deadline: {date.toLocaleDateString('de-DE', { 
+                            weekday: 'long', 
+                            day: '2-digit', 
+                            month: 'long', 
+                            year: 'numeric' 
+                          })}
+                        </span>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
