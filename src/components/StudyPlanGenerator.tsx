@@ -333,6 +333,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
 3. Die extrahierten Modulinhalte & Kompetenzen intelligent strukturiert
 4. Die optimale Lernmethode für jedes Thema/jede Kompetenz wählt
 5. Einen realistischen, motivierenden Weg zum Erfolg bietet
+6. KONKRETE, UMSETZBARE Aufgaben für jede Session definiert (keine vagen Anweisungen)
 
 ════════════════════════════════════════════════════════════════════
 
@@ -380,8 +381,9 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
    ✓ WÖCHENTLICHE LERNZEIT: Maximum 40h pro Woche (Burnout-Prävention)
 
 7. PRÜFUNGSVORBEREITUNG:
-   ✓ Letzte 2 Wochen vor Prüfung: NUR Wiederholung, KEIN neuer Stoff
-   ✓ 1 Woche vor Prüfung: Daily Practice Testing + Active Recall
+   ✓ Letzte 4 Wochen vor Prüfung: Mindestens 8-12 Stunden für erste Wiederholungsphase
+   ✓ Letzte 2 Wochen vor Prüfung: Mindestens 12-16 Stunden intensive Wiederholung, KEIN neuer Stoff
+   ✓ 1 Woche vor Prüfung: Daily Practice Testing + Active Recall, mindestens 10-15 Stunden
    ✓ KEINE neuen Themen 3 Tage vor Prüfung
 
 ════════════════════════════════════════════════════════════════════
@@ -411,12 +413,25 @@ SCHRITT 2 - WORKLOAD-VERTEILUNG:
 ✓ Berücksichtige Assessment-Gewichtungen (60% Prüfung → mehr Prüfungsvorbereitung)
 ✓ Plane 60% für initiales Lernen, 40% für Wiederholung & Prüfungsvorbereitung
 
-SCHRITT 3 - INHALTLICHE STRUKTURIERUNG:
+SCHRITT 3 - ASSESSMENT-ORIENTIERTE PLANUNG (KRITISCH!):
+✓ Analysiere JEDES Assessment (type, weight, format, deadline)
+✓ Für "Gruppenarbeit"-Assessments:
+  - Plane Sessions VOR dem Deadline für Teamarbeit/Koordination
+  - Description MUSS "Gruppenarbeit" erwähnen (z.B. "Treffe dich mit der Gruppe", "Arbeitet gemeinsam an...")
+  - Fokus auf Kollaboration, Arbeitsteilung, gemeinsame Deliverables
+✓ Für "Einzelarbeit"-Assessments:
+  - Plane individuelle Lern- und Übungssessions
+  - Description fokussiert auf eigenständiges Lernen
+✓ Sessions in den letzten 2 Wochen vor jedem Assessment-Deadline:
+  - MÜSSEN sich auf dieses spezifische Assessment vorbereiten
+  - Description MUSS konkret sagen: "Vorbereitung für [Assessment-Type] am [Deadline]"
+
+SCHRITT 4 - INHALTLICHE STRUKTURIERUNG:
 ✓ Analysiere die Modulinhalte (content) und ordne sie nach Komplexität
 ✓ Erstelle eine logische Lernsequenz: Grundlagen → Fortgeschritten → Anwendung
 ✓ Verknüpfe Inhalte mit den zu entwickelnden Kompetenzen
 
-SCHRITT 4 - METHODENWAHL (evidenzbasiert):
+SCHRITT 5 - METHODENWAHL (evidenzbasiert):
 Wähle für JEDE Session die optimale Methode basierend auf:
 
 📊 **Spaced Repetition**
@@ -480,11 +495,18 @@ Erstelle für JEDES verfügbare Zeitfenster eine optimierte Session:
   "endTime": "HH:MM",   // EXAKT aus timeSlots
   "module": "Exakter Modulname", // MUSS aus bereitgestellten Modulen stammen
   "topic": "Spezifisches Thema aus 'content'",
-  "description": "2-3 Sätze: Was GENAU tun, wie vorgehen, welches Ergebnis erwarten",
+  "description": "SEHR KONKRET: Was GENAU tun (z.B. 'Erstelle 3 BPMN-Diagramme für verschiedene Geschäftsprozesse', 'Löse Aufgaben 1-5 aus Kapitel 3', 'Baue eine REST API mit Express.js'). 
+               WICHTIG: Bei Gruppenarbeit-Assessments MUSS erwähnt werden 'Gruppenarbeit: Treffe dich mit Team und...' oder 'Gemeinsam mit Gruppe an... arbeiten'.
+               Bei Einzelarbeit-Assessments: Fokus auf individuelle Aufgaben. 
+               In letzten 2 Wochen vor Assessment-Deadline: 'Vorbereitung für [Assessment-Type] am [Deadline]: [konkrete Aufgabe]'.
+               KEINE vagen Aussagen wie 'Übe das Thema' oder 'Lerne die Grundlagen'!",
   "learningMethod": "Gewählte Methode aus obiger Liste",
   "contentTopics": ["Topic 1 aus content", "Topic 2 aus content"], // NUR aus bereitgestellten content
   "competencies": ["Kompetenz 1", "Kompetenz 2"], // NUR aus bereitgestellten competencies
-  "studyTips": "Konkrete Handlungsanweisungen"
+  "studyTips": "ACTIONABLE Tipps: Konkrete Schritte, Tools, Ressourcen (z.B. 'Nutze draw.io für Diagramme', 'Erstelle Flashcards mit Anki', 'Schaue Video X von Minute Y-Z'). 
+               Bei Gruppenarbeit: Koordinations-Tipps (z.B. 'Nutzt Trello für Aufgabenverwaltung', 'Erstellt ein gemeinsames Google Doc').
+               Bei bevorstehenden Prüfungen: Prüfungs-spezifische Tipps.
+               KEINE generischen Aussagen!"
 }
 
 Gib zurück:
@@ -738,10 +760,10 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
               module: module.name || 'Module',
               topic: contentTopic || `Lerneinheit ${sessionId}`,
               description: `Vorbereitung für ${module.name}${competency ? ' - ' + competency : ''}`,
-              learningMethod: sessionId % 3 === 0 ? 'Spaced Repetition' : sessionId % 3 === 1 ? 'Active Recall' : 'Pomodoro',
+              learningMethod: sessionId % 3 === 0 ? 'Spaced Repetition' : sessionId % 3 === 1 ? 'Active Recall' : 'Deep Work',
               contentTopics: contentTopic ? [contentTopic] : [],
               competencies: competency ? [competency] : [],
-              studyTips: 'Mache Notizen und teste dein Wissen aktiv'
+              studyTips: contentTopic ? `Bearbeite konkrete Aufgaben zu: ${contentTopic}` : ''
             });
             sessionId++;
           }
@@ -1101,7 +1123,7 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
                                       <div
                                         key={`exam-${module.id || module.name}-${assessmentIdx}`}
                                         className="bg-red-600 text-white p-2 rounded text-xs font-bold border-2 border-red-800"
-                                        title={`Prüfung: ${assessment.type} - ${module.name}`}
+                                        title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format})`}
                                       >
                                         <div className="flex items-center gap-1 mb-1">
                                           <Target className="size-3" />
@@ -1113,6 +1135,11 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
                                         <div className="text-xs opacity-90 mt-1">
                                           {assessment.type}
                                         </div>
+                                        {assessment.format && (
+                                          <div className="text-xs opacity-75 mt-1 italic">
+                                            {assessment.format}
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   }
@@ -1134,7 +1161,7 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
                                 key={session.id}
                                 className={`${bgColor} text-white p-2 rounded text-xs cursor-pointer hover:opacity-90 transition-opacity`}
                                 onClick={() => setExpandedSession(session.id)}
-                                title={`${session.topic}${session.learningMethod ? ' - ' + session.learningMethod : ''}`}
+                                title={session.topic}
                               >
                                 <div className="flex items-center gap-1 mb-1">
                                   <Clock className="size-3" />
@@ -1143,11 +1170,6 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
                                 <div className="line-clamp-2 font-medium">
                                   {session.topic}
                                 </div>
-                                {session.learningMethod && (
-                                  <div className="text-xs opacity-90 mt-1 truncate">
-                                    {session.learningMethod}
-                                  </div>
-                                )}
                               </div>
                             );
                           })}
@@ -1189,18 +1211,6 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
                         <div className="flex items-start justify-between mb-1">
                           <div className="flex-1">
                             <h4 className="text-gray-900 font-medium">{session.topic}</h4>
-                            {session.learningMethod && (
-                              <Badge 
-                                variant="outline" 
-                                className="mt-1 text-xs cursor-pointer hover:bg-blue-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowMethodInfo(session.learningMethod || null);
-                                }}
-                              >
-                                {session.learningMethod}
-                              </Badge>
-                            )}
                           </div>
                           <Badge>{session.module}</Badge>
                         </div>
