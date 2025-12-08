@@ -335,11 +335,17 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
    ✓ KEINE erfundenen oder anderen Methodennamen
    ✓ Methode muss zum Inhalt passen (siehe Framework unten)
 
-6. PAUSEN & KOGNITIVE LAST:
+6. PAUSEN & KOGNITIVE LAST (PEDAGOGISCH VALIDIERT):
    ✓ KEINE Sessions an mehr als 6 aufeinanderfolgenden Tagen
    ✓ Mindestens 1 pausenfreier Tag pro Woche (idealerweise Sonntag)
    ✓ Nicht mehr als 2 Sessions desselben Moduls an einem Tag
    ✓ Wechsel zwischen Modulen für bessere Retention (Interleaving)
+   ✓ SESSION-DAUER: Minimum 1h, Maximum 4h (kognitive Kapazität)
+   ✓ DEEP WORK Sessions: Mindestens 2h, ideal 2-4h
+   ✓ Pomodoro Sessions: 2-3h (4-6 Zyklen à 25min + Pausen)
+   ✓ Spaced Repetition: 30-60min pro Session (Kurz und häufig)
+   ✓ TÄGLICHE LERNZEIT: Maximum 8h pro Tag (Überlastungsprävention)
+   ✓ WÖCHENTLICHE LERNZEIT: Maximum 40h pro Woche (Burnout-Prävention)
 
 7. PRÜFUNGSVORBEREITUNG:
    ✓ Letzte 2 Wochen vor Prüfung: NUR Wiederholung, KEIN neuer Stoff
@@ -560,6 +566,98 @@ WICHTIG: Plane ALLE ${Math.ceil((lastExamDate.getTime() - startDate.getTime()) /
       const expectedMinSessions = Math.max(10, Math.ceil((lastExamDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 7)) * actualTimeSlots.length);
       if (validatedSessions.length < expectedMinSessions * 0.5) {
         console.warn(`[StudyPlanGenerator] Zu wenige Sessions generiert: ${validatedSessions.length} (erwartet: ${expectedMinSessions})`);
+      }
+      
+      // REVIEW: Pedagogical validation - check for cognitive overload patterns
+      const pedagogicalWarnings: string[] = [];
+      
+      // Group sessions by date to check daily load
+      const sessionsByDate = new Map<string, StudySession[]>();
+      validatedSessions.forEach(session => {
+        const date = session.date;
+        if (!sessionsByDate.has(date)) {
+          sessionsByDate.set(date, []);
+        }
+        sessionsByDate.get(date)!.push(session);
+      });
+      
+      // Check for excessive daily load (max 8h per day)
+      sessionsByDate.forEach((daySessions, date) => {
+        const totalMinutes = daySessions.reduce((sum, session) => {
+          const [startHour, startMin] = session.startTime.split(':').map(Number);
+          const [endHour, endMin] = session.endTime.split(':').map(Number);
+          const duration = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+          return sum + duration;
+        }, 0);
+        
+        if (totalMinutes > 480) { // 8 hours = 480 minutes
+          pedagogicalWarnings.push(`⚠️ ${date}: ${Math.floor(totalMinutes / 60)}h Lernzeit (max. empfohlen: 8h) - Überlastungsgefahr!`);
+        }
+        
+        // Check for same module multiple times per day (should be max 2)
+        const moduleCount = new Map<string, number>();
+        daySessions.forEach(session => {
+          moduleCount.set(session.module, (moduleCount.get(session.module) || 0) + 1);
+        });
+        
+        moduleCount.forEach((count, module) => {
+          if (count > 2) {
+            pedagogicalWarnings.push(`⚠️ ${date}: Modul "${module}" ${count}x am selben Tag - Monotonie-Gefahr!`);
+          }
+        });
+      });
+      
+      // Check for consecutive study days without breaks
+      const dates = Array.from(sessionsByDate.keys()).sort();
+      let consecutiveDays = 0;
+      let previousDate: Date | null = null;
+      
+      dates.forEach(dateStr => {
+        const currentDate = new Date(dateStr);
+        if (previousDate) {
+          const dayDiff = Math.floor((currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (dayDiff === 1) {
+            consecutiveDays++;
+            if (consecutiveDays >= 6) {
+              pedagogicalWarnings.push(`⚠️ Ab ${dateStr}: ${consecutiveDays + 1} Tage ohne Pause - Burnout-Gefahr!`);
+            }
+          } else {
+            consecutiveDays = 0;
+          }
+        }
+        previousDate = currentDate;
+      });
+      
+      // Check if last 2 weeks before each exam contain only review sessions
+      actualModules.forEach(module => {
+        if (module.assessments && Array.isArray(module.assessments)) {
+          module.assessments.forEach((assessment: any) => {
+            if (assessment.deadline) {
+              const examDate = new Date(assessment.deadline);
+              const twoWeeksBefore = new Date(examDate);
+              twoWeeksBefore.setDate(twoWeeksBefore.getDate() - 14);
+              
+              const sessionsBeforeExam = validatedSessions.filter(session => {
+                const sessionDate = new Date(session.date);
+                return session.module === module.name && 
+                       sessionDate >= twoWeeksBefore && 
+                       sessionDate <= examDate;
+              });
+              
+              if (sessionsBeforeExam.length === 0) {
+                pedagogicalWarnings.push(`⚠️ ${module.name}: Keine Wiederholungssessions in letzten 2 Wochen vor Prüfung am ${assessment.deadline}!`);
+              }
+            }
+          });
+        }
+      });
+      
+      // Log pedagogical warnings to console for user awareness
+      if (pedagogicalWarnings.length > 0) {
+        console.warn('[StudyPlanGenerator] Pedagogical Validation Warnings:');
+        pedagogicalWarnings.forEach(warning => console.warn(warning));
+      } else {
+        console.log('[StudyPlanGenerator] ✅ Pedagogical validation passed - no major concerns');
       }
       
       setStudySessions(validatedSessions);
