@@ -31,6 +31,8 @@ interface GuideContent {
   competencies: string[];
   learningStrategy: {
     method: string;
+    explanation?: string;
+    application?: string;
     reasoning: string;
     timeline: string;
   };
@@ -41,9 +43,7 @@ interface GuideContent {
   }[];
   exercises: string[];
   resources: {
-    videos: string[];
     tools: string[];
-    reading: string[];
   };
   examPrep: {
     fourWeeks: string[];
@@ -95,6 +95,10 @@ Dein Ziel: Einen KOMPLETTEN A-Z Lernplan für dieses Modul erstellen, der:
 - UMSETZBAR ist (klare Schritte)
 - MOTIVIEREND ist (Erfolg ist machbar)
 - MIT DEM LERNPLAN ABGESTIMMT ist
+- ERKLÄRT wie Lernmethoden wie Spaced Repetition funktionieren und angewendet werden
+
+WICHTIG: Viele Studenten wissen NICHT was Spaced Repetition, Active Recall, etc. bedeuten.
+Erkläre diese Methoden KONKRET und zeige WIE man sie in diesem Modul anwendet!
 
 Analysiere das Modul und erstelle einen strukturierten Guide.
 
@@ -122,27 +126,27 @@ Erstelle einen JSON-Guide mit:
   "overview": "2-3 Sätze Überblick über das Modul",
   "competencies": ["3-5 Hauptkompetenzen die entwickelt werden"],
   "learningStrategy": {
-    "method": "Hauptlernmethode (z.B. Spaced Repetition, Active Recall)",
+    "method": "Hauptlernmethode (z.B. Spaced Repetition, Active Recall, Deep Work)",
+    "explanation": "ERKLÄRE diese Methode so, dass ein Student der sie NICHT kennt sie versteht: Was ist es? Wie funktioniert es? Warum ist es effektiv?",
+    "application": "Wie wendest du diese Methode KONKRET in DIESEM Modul an? Mit Beispielen! (z.B. 'Tag 1: Lerne Konzept X. Tag 3: Wiederhole X mit Flashcards. Tag 7: Teste dich zu X ohne Unterlagen')",
     "reasoning": "WARUM diese Methode für dieses Modul optimal ist",
-    "timeline": "Wie die ${Math.round(totalHours)}h Lernzeit optimal aufgeteilt werden"
+    "timeline": "Wie die ${Math.round(totalHours)}h Lernzeit optimal aufgeteilt werden (mit konkreten Stundenzahlen für Lernen, Üben, Wiederholen)"
   },
   "weeklyPlan": [
     {
       "week": 1,
       "focus": "Hauptfokus dieser Woche",
-      "tasks": ["Konkrete Aufgabe 1", "Konkrete Aufgabe 2"]
+      "tasks": ["SEHR konkrete Aufgaben mit klaren Zielen, z.B. 'Erstelle 3 UML-Diagramme', 'Löse Übungen 1-10 aus Skript'"]
     }
   ],
-  "exercises": ["15-20 konkrete Übungen mit Action-Items, z.B. 'Erstelle BPMN-Diagramm für Amazon-Bestellprozess'"],
+  "exercises": ["20-30 konkrete Übungen mit Action-Items, z.B. 'Erstelle BPMN-Diagramm für Amazon-Bestellprozess', 'Implementiere Binary Search in Python'"],
   "resources": {
-    "videos": ["YouTube Video Titel/Thema - geschätzte Länge"],
-    "tools": ["Tool Name - wofür nutzen"],
-    "reading": ["Literatur/Artikel - welche Kapitel"]
+    "tools": ["KONKRETE Tool-Empfehlungen - Name, Link (falls bekannt), wofür genau nutzen"]
   },
   "examPrep": {
-    "fourWeeks": ["Was 4 Wochen vor Prüfung tun"],
-    "twoWeeks": ["Was 2 Wochen vor Prüfung tun"],
-    "oneWeek": ["Was 1 Woche vor Prüfung tun"],
+    "fourWeeks": ["Was 4 Wochen vor Prüfung tun - mit Zeitangaben (z.B. 'Investiere 10h in...')"],
+    "twoWeeks": ["Was 2 Wochen vor Prüfung tun - mit Zeitangaben (z.B. 'Mindestens 15h für...')"],
+    "oneWeek": ["Was 1 Woche vor Prüfung tun - mit Zeitangaben"],
     "lastDay": ["Letzte Vorbereitungen am Tag vor der Prüfung"]
   },
   "tips": ["10+ konkrete Lerntipps speziell für dieses Modul"],
@@ -153,10 +157,12 @@ Erstelle einen JSON-Guide mit:
 WICHTIG:
 - Sei SPEZIFISCH (nicht "übe viel" sondern "erstelle 5 BPMN Diagramme")
 - Nutze die Modulinhalte & Kompetenzen
-- Berücksichtige den Prüfungstyp
-- Gib echte Tool-Empfehlungen
+- Berücksichtige den Prüfungstyp (${module.assessments?.[0]?.format || 'Unbekannt'})
+- Gib NUR Tool-Empfehlungen (keine Videos, keine Literatur - nur Tools!)
 - Timeline muss zu ${Math.round(totalHours)}h passen
-- Prüfungstermin: ${examDate || 'Nicht angegeben'}`;
+- Prüfungstermin: ${examDate || 'Nicht angegeben'}
+- ERKLÄRE Lernmethoden so dass Studenten sie verstehen und anwenden können!
+- Wochenplan muss SEHR detailliert sein mit konkreten Übungen pro Woche`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -307,7 +313,22 @@ WICHTIG:
                 <Badge className="bg-purple-600 mb-2">
                   {guideContent.learningStrategy.method}
                 </Badge>
-                <p className="text-gray-700">{guideContent.learningStrategy.reasoning}</p>
+                {guideContent.learningStrategy.explanation && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold mb-2 text-blue-900">Was ist das?</h4>
+                    <p className="text-gray-700">{guideContent.learningStrategy.explanation}</p>
+                  </div>
+                )}
+                {guideContent.learningStrategy.application && (
+                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <h4 className="font-semibold mb-2 text-green-900">Wie wendest du es in diesem Modul an?</h4>
+                    <p className="text-gray-700">{guideContent.learningStrategy.application}</p>
+                  </div>
+                )}
+                <div className="mt-3">
+                  <h4 className="font-semibold mb-2">Warum diese Methode?</h4>
+                  <p className="text-gray-700">{guideContent.learningStrategy.reasoning}</p>
+                </div>
               </div>
               <Separator />
               <div>
@@ -374,21 +395,11 @@ WICHTIG:
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="size-5" />
-                Empfohlene Ressourcen
+                Empfohlene Tools
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {guideContent.resources.videos.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-2 text-red-600">🎥 Videos</h4>
-                  <ul className="space-y-1 ml-4">
-                    {guideContent.resources.videos.map((video, idx) => (
-                      <li key={idx} className="text-sm list-disc">{video}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {guideContent.resources.tools.length > 0 && (
+            <CardContent>
+              {guideContent.resources.tools.length > 0 ? (
                 <div>
                   <h4 className="font-semibold mb-2 text-blue-600">🛠️ Tools</h4>
                   <ul className="space-y-1 ml-4">
@@ -397,17 +408,10 @@ WICHTIG:
                     ))}
                   </ul>
                 </div>
+              ) : (
+                <p className="text-gray-500">Keine spezifischen Tools empfohlen.</p>
               )}
-              {guideContent.resources.reading.length > 0 && (
-                <div>
-                  <h4 className="font-semibold mb-2 text-green-600">📚 Literatur</h4>
-                  <ul className="space-y-1 ml-4">
-                    {guideContent.resources.reading.map((reading, idx) => (
-                      <li key={idx} className="text-sm list-disc">{reading}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            </CardContent>
             </CardContent>
           </Card>
 
