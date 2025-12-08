@@ -46,11 +46,14 @@ interface GuideContent {
     tools: string[];
   };
   examPrep: {
+    assessmentType: string;
+    deadline?: string;
+    format?: string;
     fourWeeks: string[];
     twoWeeks: string[];
     oneWeek: string[];
     lastDay: string[];
-  };
+  }[];
   tips: string[];
   commonMistakes: string[];
   successChecklist: string[];
@@ -143,12 +146,17 @@ Erstelle einen JSON-Guide mit:
   "resources": {
     "tools": ["KONKRETE Tool-Empfehlungen - Name, Link (falls bekannt), wofür genau nutzen"]
   },
-  "examPrep": {
-    "fourWeeks": ["Was 4 Wochen vor Prüfung tun - mit Zeitangaben (z.B. 'Investiere 10h in...')"],
-    "twoWeeks": ["Was 2 Wochen vor Prüfung tun - mit Zeitangaben (z.B. 'Mindestens 15h für...')"],
-    "oneWeek": ["Was 1 Woche vor Prüfung tun - mit Zeitangaben"],
-    "lastDay": ["Letzte Vorbereitungen am Tag vor der Prüfung"]
-  },
+  "examPrep": [
+    {
+      "assessmentType": "Name des Assessments (z.B. 'Schriftliche Prüfung', 'Gruppenarbeit', 'Präsentation')",
+      "deadline": "YYYY-MM-DD",
+      "format": "Einzelarbeit oder Gruppenarbeit",
+      "fourWeeks": ["Was 4 Wochen vor DIESEM Assessment tun - mit Zeitangaben (z.B. 'Investiere 10h in...')"],
+      "twoWeeks": ["Was 2 Wochen vor DIESEM Assessment tun - mit Zeitangaben (z.B. 'Mindestens 15h für...')"],
+      "oneWeek": ["Was 1 Woche vor DIESEM Assessment tun - mit Zeitangaben"],
+      "lastDay": ["Letzte Vorbereitungen am Tag vor DIESEM Assessment"]
+    }
+  ],
   "tips": ["10+ konkrete Lerntipps speziell für dieses Modul"],
   "commonMistakes": ["Häufige Fehler die Studenten machen"],
   "successChecklist": ["Checkliste: Bist du bereit für die Prüfung?"]
@@ -157,12 +165,18 @@ Erstelle einen JSON-Guide mit:
 WICHTIG:
 - Sei SPEZIFISCH (nicht "übe viel" sondern "erstelle 5 BPMN Diagramme")
 - Nutze die Modulinhalte & Kompetenzen
-- Berücksichtige den Prüfungstyp (${module.assessments?.[0]?.format || 'Unbekannt'})
+- KRITISCH: Erstelle für JEDES Assessment (Prüfung, Gruppenarbeit, Präsentation, etc.) eine SEPARATE Vorbereitung!
+- Berücksichtige den Prüfungstyp und Format (Einzelarbeit vs Gruppenarbeit) für jedes Assessment
+- Bei Gruppenarbeit: Koordinations- und Teamwork-Tipps
+- Bei Präsentationen: Präsentations- und Vortragstipps
+- Bei schriftlichen Prüfungen: Wiederholungs- und Testtipps
 - Gib NUR Tool-Empfehlungen (keine Videos, keine Literatur - nur Tools!)
 - Timeline muss zu ${Math.round(totalHours)}h passen
-- Prüfungstermin: ${examDate || 'Nicht angegeben'}
 - ERKLÄRE Lernmethoden so dass Studenten sie verstehen und anwenden können!
-- Wochenplan muss SEHR detailliert sein mit konkreten Übungen pro Woche`;
+- Wochenplan muss SEHR detailliert sein mit konkreten Übungen pro Woche
+
+ASSESSMENTS IN DIESEM MODUL:
+${module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.weight}%, ${a.format}) - Deadline: ${a.deadline || 'TBD'}`).join('\n')}`;
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -415,49 +429,64 @@ WICHTIG:
             </CardContent>
           </Card>
 
-          {/* Exam Prep Timeline */}
-          <Card className="border-2 border-red-200 bg-red-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Flame className="size-5 text-red-600" />
-                Prüfungsvorbereitung Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-2 text-red-700">🔴 4 Wochen vorher</h4>
-                <ul className="space-y-1 ml-4">
-                  {guideContent.examPrep.fourWeeks.map((item, idx) => (
-                    <li key={idx} className="text-sm list-disc">{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2 text-orange-700">🟡 2 Wochen vorher</h4>
-                <ul className="space-y-1 ml-4">
-                  {guideContent.examPrep.twoWeeks.map((item, idx) => (
-                    <li key={idx} className="text-sm list-disc">{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2 text-yellow-700">🟢 1 Woche vorher</h4>
-                <ul className="space-y-1 ml-4">
-                  {guideContent.examPrep.oneWeek.map((item, idx) => (
-                    <li key={idx} className="text-sm list-disc">{item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2 text-blue-700">🔵 Letzter Tag</h4>
-                <ul className="space-y-1 ml-4">
-                  {guideContent.examPrep.lastDay.map((item, idx) => (
-                    <li key={idx} className="text-sm list-disc">{item}</li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Exam Prep Timeline - Separate for each assessment */}
+          {guideContent.examPrep.map((prep, prepIdx) => (
+            <Card key={prepIdx} className="border-2 border-red-200 bg-red-50/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flame className="size-5 text-red-600" />
+                  Vorbereitung: {prep.assessmentType}
+                </CardTitle>
+                <CardDescription>
+                  {prep.format && <Badge variant="outline" className="mr-2">{prep.format}</Badge>}
+                  {prep.deadline && (
+                    <span className="text-sm text-gray-600">
+                      Deadline: {new Date(prep.deadline).toLocaleDateString('de-DE', { 
+                        weekday: 'long', 
+                        day: '2-digit', 
+                        month: 'long', 
+                        year: 'numeric' 
+                      })}
+                    </span>
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2 text-red-700">🔴 4 Wochen vorher</h4>
+                  <ul className="space-y-1 ml-4">
+                    {prep.fourWeeks.map((item, idx) => (
+                      <li key={idx} className="text-sm list-disc">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2 text-orange-700">🟡 2 Wochen vorher</h4>
+                  <ul className="space-y-1 ml-4">
+                    {prep.twoWeeks.map((item, idx) => (
+                      <li key={idx} className="text-sm list-disc">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2 text-yellow-700">🟢 1 Woche vorher</h4>
+                  <ul className="space-y-1 ml-4">
+                    {prep.oneWeek.map((item, idx) => (
+                      <li key={idx} className="text-sm list-disc">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2 text-blue-700">🔵 Letzter Tag</h4>
+                  <ul className="space-y-1 ml-4">
+                    {prep.lastDay.map((item, idx) => (
+                      <li key={idx} className="text-sm list-disc">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
 
           {/* Tips & Common Mistakes */}
           <div className="grid md:grid-cols-2 gap-6">

@@ -413,12 +413,25 @@ SCHRITT 2 - WORKLOAD-VERTEILUNG:
 ✓ Berücksichtige Assessment-Gewichtungen (60% Prüfung → mehr Prüfungsvorbereitung)
 ✓ Plane 60% für initiales Lernen, 40% für Wiederholung & Prüfungsvorbereitung
 
-SCHRITT 3 - INHALTLICHE STRUKTURIERUNG:
+SCHRITT 3 - ASSESSMENT-ORIENTIERTE PLANUNG (KRITISCH!):
+✓ Analysiere JEDES Assessment (type, weight, format, deadline)
+✓ Für "Gruppenarbeit"-Assessments:
+  - Plane Sessions VOR dem Deadline für Teamarbeit/Koordination
+  - Description MUSS "Gruppenarbeit" erwähnen (z.B. "Treffe dich mit der Gruppe", "Arbeitet gemeinsam an...")
+  - Fokus auf Kollaboration, Arbeitsteilung, gemeinsame Deliverables
+✓ Für "Einzelarbeit"-Assessments:
+  - Plane individuelle Lern- und Übungssessions
+  - Description fokussiert auf eigenständiges Lernen
+✓ Sessions in den letzten 2 Wochen vor jedem Assessment-Deadline:
+  - MÜSSEN sich auf dieses spezifische Assessment vorbereiten
+  - Description MUSS konkret sagen: "Vorbereitung für [Assessment-Type] am [Deadline]"
+
+SCHRITT 4 - INHALTLICHE STRUKTURIERUNG:
 ✓ Analysiere die Modulinhalte (content) und ordne sie nach Komplexität
 ✓ Erstelle eine logische Lernsequenz: Grundlagen → Fortgeschritten → Anwendung
 ✓ Verknüpfe Inhalte mit den zu entwickelnden Kompetenzen
 
-SCHRITT 4 - METHODENWAHL (evidenzbasiert):
+SCHRITT 5 - METHODENWAHL (evidenzbasiert):
 Wähle für JEDE Session die optimale Methode basierend auf:
 
 📊 **Spaced Repetition**
@@ -482,11 +495,18 @@ Erstelle für JEDES verfügbare Zeitfenster eine optimierte Session:
   "endTime": "HH:MM",   // EXAKT aus timeSlots
   "module": "Exakter Modulname", // MUSS aus bereitgestellten Modulen stammen
   "topic": "Spezifisches Thema aus 'content'",
-  "description": "SEHR KONKRET: Was GENAU tun (z.B. 'Erstelle 3 BPMN-Diagramme für verschiedene Geschäftsprozesse', 'Löse Aufgaben 1-5 aus Kapitel 3', 'Baue eine REST API mit Express.js'). KEINE vagen Aussagen wie 'Übe das Thema' oder 'Lerne die Grundlagen'!",
+  "description": "SEHR KONKRET: Was GENAU tun (z.B. 'Erstelle 3 BPMN-Diagramme für verschiedene Geschäftsprozesse', 'Löse Aufgaben 1-5 aus Kapitel 3', 'Baue eine REST API mit Express.js'). 
+               WICHTIG: Bei Gruppenarbeit-Assessments MUSS erwähnt werden 'Gruppenarbeit: Treffe dich mit Team und...' oder 'Gemeinsam mit Gruppe an... arbeiten'.
+               Bei Einzelarbeit-Assessments: Fokus auf individuelle Aufgaben. 
+               In letzten 2 Wochen vor Assessment-Deadline: 'Vorbereitung für [Assessment-Type] am [Deadline]: [konkrete Aufgabe]'.
+               KEINE vagen Aussagen wie 'Übe das Thema' oder 'Lerne die Grundlagen'!",
   "learningMethod": "Gewählte Methode aus obiger Liste",
   "contentTopics": ["Topic 1 aus content", "Topic 2 aus content"], // NUR aus bereitgestellten content
   "competencies": ["Kompetenz 1", "Kompetenz 2"], // NUR aus bereitgestellten competencies
-  "studyTips": "ACTIONABLE Tipps: Konkrete Schritte, Tools, Ressourcen (z.B. 'Nutze draw.io für Diagramme', 'Erstelle Flashcards mit Anki', 'Schaue Video X von Minute Y-Z'). KEINE generischen Aussagen!"
+  "studyTips": "ACTIONABLE Tipps: Konkrete Schritte, Tools, Ressourcen (z.B. 'Nutze draw.io für Diagramme', 'Erstelle Flashcards mit Anki', 'Schaue Video X von Minute Y-Z'). 
+               Bei Gruppenarbeit: Koordinations-Tipps (z.B. 'Nutzt Trello für Aufgabenverwaltung', 'Erstellt ein gemeinsames Google Doc').
+               Bei bevorstehenden Prüfungen: Prüfungs-spezifische Tipps.
+               KEINE generischen Aussagen!"
 }
 
 Gib zurück:
@@ -1141,7 +1161,7 @@ WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Woche
                                 key={session.id}
                                 className={`${bgColor} text-white p-2 rounded text-xs cursor-pointer hover:opacity-90 transition-opacity`}
                                 onClick={() => setExpandedSession(session.id)}
-                                title={`${session.topic}${session.learningMethod ? ' - ' + session.learningMethod : ''}`}
+                                title={session.topic}
                               >
                                 <div className="flex items-center gap-1 mb-1">
                                   <Clock className="size-3" />
