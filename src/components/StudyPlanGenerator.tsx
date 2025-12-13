@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import OpenAI from 'openai';
 import { ModuleLearningGuide } from './ModuleLearningGuide';
+import { STUDY_PLAN_SYSTEM_PROMPT, STUDY_PLAN_USER_PROMPT } from '../prompts/studyPlanGenerator';
 
 // REVIEW: Constants for pedagogical and validation rules
 const ALLOWED_LEARNING_METHODS = [
@@ -318,8 +319,18 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
         }))
       };
       
-      // Gold-standard prompt with advanced prompt engineering and defensive rules
-      const systemPrompt = `Du bist ein Elite-Lerncoach und KI-Spezialist für personalisierte Lernplanung mit tiefem Verständnis von:
+      // Import system prompt from separate file for easy editing
+      const systemPrompt = STUDY_PLAN_SYSTEM_PROMPT
+        .replace(/{startDate}/g, startDate.toISOString().split('T')[0])
+        .replace(/{lastExamDate}/g, lastExamDate.toISOString().split('T')[0])
+        .replace(/{weeksBetween}/g, calculateWeeksBetweenDates(startDate, lastExamDate).toString())
+        .replace(/{totalSlotsPerWeek}/g, actualTimeSlots.length.toString())
+        .replace(/{minSessions}/g, Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length).toString())
+        .replace(/{maxSessions}/g, Math.min(200, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length * 2).toString())
+        .replace(/{allowedMethods}/g, ALLOWED_LEARNING_METHODS.map(m => `"${m}"`).join(', '));
+      
+      /* Old inline prompt - now moved to src/prompts/studyPlanGenerator.ts
+      const oldSystemPrompt = `Du bist ein Elite-Lerncoach und KI-Spezialist für personalisierte Lernplanung mit tiefem Verständnis von:
 - Lernpsychologie & kognitiven Neurowissenschaften
 - Evidenzbasierten Lernstrategien (Spaced Repetition, Retrieval Practice, Interleaving)
 - Zeitmanagement & Flow-Zuständen
@@ -535,10 +546,14 @@ Gib zurück:
 □ JSON ist valide und vollständig
 
 Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
+      // END OF OLD INLINE PROMPT - This is now kept as a comment for reference
+      // The actual prompt is loaded from src/prompts/studyPlanGenerator.ts
+      */
 
-      const userPrompt = `Erstelle meinen personalisierten Lernplan für das GESAMTE Semester:\n\n${JSON.stringify(planningData, null, 2)}
-
-WICHTIG: Plane ALLE ${calculateWeeksBetweenDates(startDate, lastExamDate)} Wochen mit jeweils ${actualTimeSlots.length} Sessions pro Woche!`;
+      const userPrompt = STUDY_PLAN_USER_PROMPT
+        .replace('{planningData}', JSON.stringify(planningData, null, 2))
+        .replace('{weeksBetween}', calculateWeeksBetweenDates(startDate, lastExamDate).toString())
+        .replace('{totalSlotsPerWeek}', actualTimeSlots.length.toString());
       
       console.log('Generiere KI-Lernplan mit DeepSeek:', planningData);
       console.log(`Erwartete Sessions: ~${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length}`);
