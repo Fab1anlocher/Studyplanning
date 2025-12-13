@@ -98,20 +98,18 @@ export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: M
       // Import system prompt from separate file for easy editing by non-technical users
       const systemPrompt = MODULE_GUIDE_SYSTEM_PROMPT;
 
-      // Import user prompt from separate file and replace variables
+      // Import user prompt from separate file and replace variables (using global flag for consistency)
       const userPrompt = MODULE_GUIDE_USER_PROMPT
-        .replace('{moduleName}', module.name)
-        .replace('{ects}', module.ects?.toString() || 'N/A')
-        .replace('{workload}', (module.workload || module.ects * 30)?.toString() || 'N/A')
+        .replace(/{moduleName}/g, module.name)
         .replace(/{ects}/g, module.ects?.toString() || 'N/A')
         .replace(/{workload}/g, (module.workload || module.ects * 30)?.toString() || 'N/A')
         .replace(/{totalHours}/g, Math.round(totalHours).toString())
-        .replace('{sessionCount}', moduleSessions.length.toString())
-        .replace('{content}', module.content?.join(', ') || 'Keine Angabe')
-        .replace('{competencies}', module.competencies?.join(', ') || 'Keine Angabe')
-        .replace('{assessments}', module.assessments?.map((a: any) => `- ${a.type} (${a.weight}%) - ${a.format} - Termin: ${a.deadline || 'TBD'}`).join('\n') || 'Keine Angabe')
-        .replace('{sessionExamples}', moduleSessions.slice(0, 5).map(s => `- ${s.date}: ${s.topic} (${s.startTime}-${s.endTime})`).join('\n') || 'Keine Sessions')
-        .replace('{assessmentsList}', module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.weight}%, ${a.format}) - Deadline: ${a.deadline || 'TBD'}`).join('\n') || 'Keine Assessments');
+        .replace(/{sessionCount}/g, moduleSessions.length.toString())
+        .replace(/{content}/g, module.content?.join(', ') || 'Keine Angabe')
+        .replace(/{competencies}/g, module.competencies?.join(', ') || 'Keine Angabe')
+        .replace(/{assessments}/g, module.assessments?.map((a: any) => `- ${a.type} (${a.weight}%) - ${a.format} - Termin: ${a.deadline || 'TBD'}`).join('\n') || 'Keine Angabe')
+        .replace(/{sessionExamples}/g, moduleSessions.slice(0, 5).map(s => `- ${s.date}: ${s.topic} (${s.startTime}-${s.endTime})`).join('\n') || 'Keine Sessions')
+        .replace(/{assessmentsList}/g, module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.weight}%, ${a.format}) - Deadline: ${a.deadline || 'TBD'}`).join('\n') || 'Keine Assessments');
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',

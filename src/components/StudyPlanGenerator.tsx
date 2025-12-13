@@ -321,7 +321,6 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
       
       // Import system prompt from separate file for easy editing
       const systemPrompt = STUDY_PLAN_SYSTEM_PROMPT
-        .replace('{startDate}', startDate.toISOString().split('T')[0])
         .replace(/{startDate}/g, startDate.toISOString().split('T')[0])
         .replace(/{lastExamDate}/g, lastExamDate.toISOString().split('T')[0])
         .replace(/{weeksBetween}/g, calculateWeeksBetweenDates(startDate, lastExamDate).toString())
