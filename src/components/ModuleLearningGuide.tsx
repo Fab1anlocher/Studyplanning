@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
+import { Alert, AlertDescription } from './ui/alert';
 import { 
   BookOpen, 
   Target, 
@@ -18,6 +19,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import OpenAI from 'openai';
+import { MODULE_GUIDE_SYSTEM_PROMPT, MODULE_GUIDE_USER_PROMPT } from '../prompts/moduleLearningGuide';
 
 interface ModuleLearningGuideProps {
   module: any;
@@ -62,6 +64,7 @@ interface GuideContent {
 export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: ModuleLearningGuideProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [guideContent, setGuideContent] = useState<GuideContent | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Filter sessions for this module
   const moduleSessions = studySessions.filter(s => s.module === module.name);
@@ -73,10 +76,11 @@ export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: M
 
   const generateGuide = async () => {
     setIsGenerating(true);
+    setError(null);
     
     try {
       if (!apiKey || apiKey.trim() === '') {
-        alert('Kein API-Key vorhanden. Bitte API-Key eingeben.');
+        setError('Kein API-Key vorhanden. Bitte API-Key eingeben.');
         setIsGenerating(false);
         return;
       }
@@ -91,92 +95,23 @@ export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: M
         ? module.assessments[0].deadline 
         : null;
 
-      const systemPrompt = `Du bist ein Elite-Lerncoach und erstellst DETAILLIERTE, ACTIONABLE Lernguides für Studenten.
+      // Import system prompt from separate file for easy editing by non-technical users
+      const systemPrompt = MODULE_GUIDE_SYSTEM_PROMPT;
 
-Dein Ziel: Einen KOMPLETTEN A-Z Lernplan für dieses Modul erstellen, der:
-- KONKRET ist (keine vagen Tipps)
-- UMSETZBAR ist (klare Schritte)
-- MOTIVIEREND ist (Erfolg ist machbar)
-- MIT DEM LERNPLAN ABGESTIMMT ist
-- ERKLÄRT wie Lernmethoden wie Spaced Repetition funktionieren und angewendet werden
-
-WICHTIG: Viele Studenten wissen NICHT was Spaced Repetition, Active Recall, etc. bedeuten.
-Erkläre diese Methoden KONKRET und zeige WIE man sie in diesem Modul anwendet!
-
-Analysiere das Modul und erstelle einen strukturierten Guide.
-
-WICHTIG: Antworte NUR mit einem gültigen JSON-Objekt, keine zusätzlichen Texte!`;
-
-      const userPrompt = `Erstelle einen detaillierten Lernguide für:
-
-MODUL: ${module.name}
-ECTS: ${module.ects}
-WORKLOAD: ${module.workload} Stunden
-GEPLANTE LERNZEIT: ${Math.round(totalHours)}h (${moduleSessions.length} Sessions im Plan)
-
-INHALTE: ${module.content?.join(', ') || 'Keine Angabe'}
-KOMPETENZEN: ${module.competencies?.join(', ') || 'Keine Angabe'}
-
-PRÜFUNGEN:
-${module.assessments?.map((a: any) => `- ${a.type} (${a.weight}%) - ${a.format} - Termin: ${a.deadline || 'TBD'}`).join('\n')}
-
-LERNPLAN-SESSIONS (Beispiele):
-${moduleSessions.slice(0, 5).map(s => `- ${s.date}: ${s.topic} (${s.startTime}-${s.endTime})`).join('\n')}
-
-Erstelle einen JSON-Guide mit:
-
-{
-  "overview": "2-3 Sätze Überblick über das Modul",
-  "competencies": ["3-5 Hauptkompetenzen die entwickelt werden"],
-  "learningStrategy": {
-    "method": "Hauptlernmethode (z.B. Spaced Repetition, Active Recall, Deep Work)",
-    "explanation": "ERKLÄRE diese Methode so, dass ein Student der sie NICHT kennt sie versteht: Was ist es? Wie funktioniert es? Warum ist es effektiv?",
-    "application": "Wie wendest du diese Methode KONKRET in DIESEM Modul an? Mit Beispielen! (z.B. 'Tag 1: Lerne Konzept X. Tag 3: Wiederhole X mit Flashcards. Tag 7: Teste dich zu X ohne Unterlagen')",
-    "reasoning": "WARUM diese Methode für dieses Modul optimal ist",
-    "timeline": "Wie die ${Math.round(totalHours)}h Lernzeit optimal aufgeteilt werden (mit konkreten Stundenzahlen für Lernen, Üben, Wiederholen)"
-  },
-  "weeklyPlan": [
-    {
-      "week": 1,
-      "focus": "Hauptfokus dieser Woche",
-      "tasks": ["SEHR konkrete Aufgaben mit klaren Zielen, z.B. 'Erstelle 3 UML-Diagramme', 'Löse Übungen 1-10 aus Skript'"]
-    }
-  ],
-  "exercises": ["20-30 konkrete Übungen mit Action-Items, z.B. 'Erstelle BPMN-Diagramm für Amazon-Bestellprozess', 'Implementiere Binary Search in Python'"],
-  "resources": {
-    "tools": ["KONKRETE Tool-Empfehlungen - Name, Link (falls bekannt), wofür genau nutzen"]
-  },
-  "examPrep": [
-    {
-      "assessmentType": "Name des Assessments (z.B. 'Schriftliche Prüfung', 'Gruppenarbeit', 'Präsentation')",
-      "deadline": "YYYY-MM-DD",
-      "format": "Einzelarbeit oder Gruppenarbeit",
-      "fourWeeks": ["Was 4 Wochen vor DIESEM Assessment tun - mit Zeitangaben (z.B. 'Investiere 10h in...')"],
-      "twoWeeks": ["Was 2 Wochen vor DIESEM Assessment tun - mit Zeitangaben (z.B. 'Mindestens 15h für...')"],
-      "oneWeek": ["Was 1 Woche vor DIESEM Assessment tun - mit Zeitangaben"],
-      "lastDay": ["Letzte Vorbereitungen am Tag vor DIESEM Assessment"]
-    }
-  ],
-  "tips": ["10+ konkrete Lerntipps speziell für dieses Modul"],
-  "commonMistakes": ["Häufige Fehler die Studenten machen"],
-  "successChecklist": ["Checkliste: Bist du bereit für die Prüfung?"]
-}
-
-WICHTIG:
-- Sei SPEZIFISCH (nicht "übe viel" sondern "erstelle 5 BPMN Diagramme")
-- Nutze die Modulinhalte & Kompetenzen
-- KRITISCH: Erstelle für JEDES Assessment (Prüfung, Gruppenarbeit, Präsentation, etc.) eine SEPARATE Vorbereitung!
-- Berücksichtige den Prüfungstyp und Format (Einzelarbeit vs Gruppenarbeit) für jedes Assessment
-- Bei Gruppenarbeit: Koordinations- und Teamwork-Tipps
-- Bei Präsentationen: Präsentations- und Vortragstipps
-- Bei schriftlichen Prüfungen: Wiederholungs- und Testtipps
-- Gib NUR Tool-Empfehlungen (keine Videos, keine Literatur - nur Tools!)
-- Timeline muss zu ${Math.round(totalHours)}h passen
-- ERKLÄRE Lernmethoden so dass Studenten sie verstehen und anwenden können!
-- Wochenplan muss SEHR detailliert sein mit konkreten Übungen pro Woche
-
-ASSESSMENTS IN DIESEM MODUL:
-${module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.weight}%, ${a.format}) - Deadline: ${a.deadline || 'TBD'}`).join('\n')}`;
+      // Import user prompt from separate file and replace variables
+      const userPrompt = MODULE_GUIDE_USER_PROMPT
+        .replace('{moduleName}', module.name)
+        .replace('{ects}', module.ects?.toString() || 'N/A')
+        .replace('{workload}', (module.workload || module.ects * 30)?.toString() || 'N/A')
+        .replace(/{ects}/g, module.ects?.toString() || 'N/A')
+        .replace(/{workload}/g, (module.workload || module.ects * 30)?.toString() || 'N/A')
+        .replace(/{totalHours}/g, Math.round(totalHours).toString())
+        .replace('{sessionCount}', moduleSessions.length.toString())
+        .replace('{content}', module.content?.join(', ') || 'Keine Angabe')
+        .replace('{competencies}', module.competencies?.join(', ') || 'Keine Angabe')
+        .replace('{assessments}', module.assessments?.map((a: any) => `- ${a.type} (${a.weight}%) - ${a.format} - Termin: ${a.deadline || 'TBD'}`).join('\n') || 'Keine Angabe')
+        .replace('{sessionExamples}', moduleSessions.slice(0, 5).map(s => `- ${s.date}: ${s.topic} (${s.startTime}-${s.endTime})`).join('\n') || 'Keine Sessions')
+        .replace('{assessmentsList}', module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.weight}%, ${a.format}) - Deadline: ${a.deadline || 'TBD'}`).join('\n') || 'Keine Assessments');
 
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
@@ -196,7 +131,7 @@ ${module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.w
       }
     } catch (error) {
       console.error('Fehler beim Generieren des Guides:', error);
-      alert('Guide konnte nicht generiert werden. Bitte versuche es erneut.');
+      setError('Guide konnte nicht generiert werden. Bitte versuche es erneut.');
     } finally {
       setIsGenerating(false);
     }
@@ -258,6 +193,13 @@ ${module.assessments?.map((a: any, idx: number) => `${idx + 1}. ${a.type} (${a.w
                   und die Modulinhalte.
                 </p>
               </div>
+              {error && (
+                <Alert className="max-w-2xl mx-auto bg-red-50 border-red-200">
+                  <AlertDescription className="text-red-700">
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
               <Button 
                 size="lg"
                 onClick={generateGuide}
