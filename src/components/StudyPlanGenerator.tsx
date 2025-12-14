@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
+import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Lightbulb, Zap, X } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -10,6 +10,10 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import OpenAI from 'openai';
 import { STUDY_PLAN_SYSTEM_PROMPT, STUDY_PLAN_USER_PROMPT } from '../prompts/studyPlanGenerator';
+import { ExecutionGuide } from '../types/executionGuide';
+import { generateWeekElaboration, getSessionsForWeek, formatDateISO } from '../services/weekElaborationService';
+import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide } from '../services/executionGuideStorage';
+import { ExecutionGuideView } from './ExecutionGuideView';
 
 // REVIEW: Constants for pedagogical and validation rules
 const ALLOWED_LEARNING_METHODS = [
@@ -212,6 +216,12 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // For month navigation
   const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null); // For learning method tooltips
+  
+  // Week elaboration state
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null);
+  const [isElaboratingWeek, setIsElaboratingWeek] = useState(false);
+  const [elaborationError, setElaborationError] = useState<string | null>(null);
+  const [showExecutionGuide, setShowExecutionGuide] = useState<string | null>(null); // sessionId
 
   const generatePlan = useCallback(async () => {
     setIsGenerating(true);
@@ -844,6 +854,81 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
     }
   }, [actualModules, actualTimeSlots, propApiKey]);
 
+  // Week elaboration handler
+  const handleElaborateWeek = useCallback(async (weekStartDate: Date) => {
+    console.log('[WeekElaboration] Starting elaboration for week:', weekStartDate);
+    setIsElaboratingWeek(true);
+    setElaborationError(null);
+    
+    try {
+      // Get sessions for this week
+      const weekSessions = getSessionsForWeek(studySessions, weekStartDate);
+      
+      if (weekSessions.length === 0) {
+        throw new Error('Keine Sessions in dieser Woche gefunden');
+      }
+      
+      console.log('[WeekElaboration] Found sessions:', weekSessions.length);
+      
+      // Prepare module data
+      const moduleData = actualModules.map(module => ({
+        name: module.name,
+        content: module.content || [],
+        competencies: module.competencies || [],
+        teachingMethods: module.teachingMethods || [],
+        assessments: (module.assessments || []).map((a: any) => ({
+          type: a.type,
+          weight: a.weight,
+          format: a.format,
+          tools: a.tools || []
+        }))
+      }));
+      
+      // Prepare request
+      const weekEnd = new Date(weekStartDate);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      
+      const request = {
+        week: {
+          startDate: formatDateISO(weekStartDate),
+          endDate: formatDateISO(weekEnd)
+        },
+        sessions: weekSessions.map(s => ({
+          id: s.id,
+          date: s.date,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          module: s.module,
+          topic: s.topic,
+          description: s.description,
+          learningMethod: s.learningMethod,
+          contentTopics: s.contentTopics,
+          competencies: s.competencies
+        })),
+        moduleData: moduleData
+      };
+      
+      // Call LLM service
+      const response = await generateWeekElaboration(request, propApiKey);
+      
+      console.log('[WeekElaboration] Received guides:', response.executionGuides.length);
+      
+      // Save to localStorage
+      saveExecutionGuides(response.executionGuides);
+      
+      setIsElaboratingWeek(false);
+      setSelectedWeekStart(null); // Close week selection
+      
+      // Show success message (could be improved with a toast notification)
+      alert(`✅ Woche erfolgreich ausgearbeitet!\n\n${response.executionGuides.length} Sessions wurden mit Execution Guides angereichert.`);
+      
+    } catch (error) {
+      console.error('[WeekElaboration] Error:', error);
+      setElaborationError(error instanceof Error ? error.message : 'Fehler beim Ausarbeiten der Woche');
+      setIsElaboratingWeek(false);
+    }
+  }, [studySessions, actualModules, propApiKey]);
+
   // Kalender-Logik - Memoized to prevent recalculation on every render
   const getWeeksInMonth = useCallback((year: number, month: number) => {
     const weeks = [];
@@ -1046,29 +1131,40 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         {/* Calendar */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm" onClick={handlePreviousMonth}>
-                  <ChevronDown className="size-4 rotate-90" />
-                </Button>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="size-5" />
-                  {currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
-                </CardTitle>
-                <Button variant="outline" size="sm" onClick={handleNextMonth}>
-                  <ChevronUp className="size-4 -rotate-90" />
-                </Button>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Button variant="outline" size="sm" onClick={handlePreviousMonth}>
+                    <ChevronDown className="size-4 rotate-90" />
+                  </Button>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="size-5" />
+                    {currentMonth.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={handleNextMonth}>
+                    <ChevronUp className="size-4 -rotate-90" />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  {actualModules.slice(0, 3).map((module, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className={`size-3 rounded-full ${
+                        index === 0 ? 'bg-blue-500' : index === 1 ? 'bg-purple-500' : 'bg-pink-500'
+                      }`} />
+                      <span className="text-gray-600">{module.name}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-4 text-sm">
-                {actualModules.slice(0, 3).map((module, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className={`size-3 rounded-full ${
-                      index === 0 ? 'bg-blue-500' : index === 1 ? 'bg-purple-500' : 'bg-pink-500'
-                    }`} />
-                    <span className="text-gray-600">{module.name}</span>
-                  </div>
-                ))}
-              </div>
+              
+              {/* Week elaboration hint */}
+              <Alert className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
+                <Zap className="size-4 text-orange-600" />
+                <AlertDescription>
+                  <strong>Neu:</strong> Klicke auf eine Woche (Montag), um sie detailliert auszuarbeiten. 
+                  Du erhältst für alle Sessions konkrete Ablaufpläne, Tools und Erfolgskriterien.
+                </AlertDescription>
+              </Alert>
             </div>
           </CardHeader>
           <CardContent>
@@ -1083,12 +1179,67 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
 
             {/* Calendar grid */}
             <div className="space-y-2">
-              {weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="grid grid-cols-7 gap-2">
-                  {week.map((date, dayIndex) => {
-                    const sessions = getSessionsForDate(date);
-                    const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-                    const isToday = date.toDateString() === new Date('2024-12-09').toDateString();
+              {weeks.map((week, weekIndex) => {
+                // Get Monday of this week for week selection
+                const weekMonday = week[0]; // First day (Monday)
+                const weekSessions = getSessionsForWeek(studySessions, weekMonday);
+                const isSelectedWeek = selectedWeekStart && 
+                  weekMonday.toDateString() === selectedWeekStart.toDateString();
+                
+                return (
+                  <div key={weekIndex} className="space-y-2">
+                    {/* Week elaboration button - show on hover or when selected */}
+                    {weekSessions.length > 0 && (
+                      <div className="flex items-center gap-2 px-1">
+                        <Button
+                          variant={isSelectedWeek ? "default" : "outline"}
+                          size="sm"
+                          className={`text-xs ${isSelectedWeek ? 'bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600' : ''}`}
+                          onClick={() => {
+                            if (isSelectedWeek) {
+                              handleElaborateWeek(weekMonday);
+                            } else {
+                              setSelectedWeekStart(weekMonday);
+                            }
+                          }}
+                          disabled={isElaboratingWeek}
+                        >
+                          {isElaboratingWeek && isSelectedWeek ? (
+                            <>
+                              <RefreshCw className="size-3 mr-1 animate-spin" />
+                              Wird ausgearbeitet...
+                            </>
+                          ) : isSelectedWeek ? (
+                            <>
+                              <Zap className="size-3 mr-1" />
+                              Woche ausarbeiten ({weekSessions.length} Sessions)
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="size-3 mr-1" />
+                              Woche {formatDateISO(weekMonday)} auswählen
+                            </>
+                          )}
+                        </Button>
+                        {isSelectedWeek && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => setSelectedWeekStart(null)}
+                            disabled={isElaboratingWeek}
+                          >
+                            <X className="size-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className={`grid grid-cols-7 gap-2 ${isSelectedWeek ? 'ring-2 ring-orange-400 rounded-lg p-1' : ''}`}>
+                      {week.map((date, dayIndex) => {
+                        const sessions = getSessionsForDate(date);
+                        const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                        const isToday = date.toDateString() === new Date('2024-12-09').toDateString();
                     
                     return (
                       <div
@@ -1174,10 +1325,12 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                           })}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ))}
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -1211,7 +1364,15 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                           <div className="flex-1">
                             <h4 className="text-gray-900 font-medium">{session.topic}</h4>
                           </div>
-                          <Badge>{session.module}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge>{session.module}</Badge>
+                            {hasExecutionGuide(session.id) && (
+                              <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+                                <Zap className="size-3 mr-1" />
+                                Ausgearbeitet
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm text-gray-600 mb-2">{session.description}</p>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
@@ -1227,6 +1388,20 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                             <Clock className="size-3" />
                             {session.startTime} - {session.endTime}
                           </span>
+                          {hasExecutionGuide(session.id) && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="text-xs h-auto p-0 text-orange-600 hover:text-orange-700"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowExecutionGuide(session.id);
+                              }}
+                            >
+                              <Zap className="size-3 mr-1" />
+                              Execution Guide anzeigen
+                            </Button>
+                          )}
                         </div>
                       </div>
                       <CollapsibleTrigger asChild>
@@ -1330,6 +1505,95 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Execution Guide Modal */}
+        {showExecutionGuide && (() => {
+          const guide = getExecutionGuide(showExecutionGuide);
+          const session = studySessions.find(s => s.id === showExecutionGuide);
+          
+          if (!guide || !session) return null;
+          
+          return (
+            <div 
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+              onClick={() => setShowExecutionGuide(null)}
+            >
+              <div 
+                className="max-w-3xl w-full my-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="flex items-center gap-2 mb-2">
+                          <Zap className="size-6 text-orange-600" />
+                          Execution Guide
+                        </CardTitle>
+                        <div className="space-y-1">
+                          <h3 className="text-lg font-semibold text-gray-900">{session.topic}</h3>
+                          <div className="flex items-center gap-3 text-sm text-gray-600">
+                            <Badge>{session.module}</Badge>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="size-3" />
+                              {new Date(session.date).toLocaleDateString('de-DE', { 
+                                weekday: 'long', 
+                                day: '2-digit', 
+                                month: 'long' 
+                              })}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="size-3" />
+                              {session.startTime} - {session.endTime}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setShowExecutionGuide(null)}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <ExecutionGuideView
+                      guide={guide}
+                      sessionInfo={{
+                        topic: session.topic,
+                        module: session.module,
+                        date: session.date,
+                        startTime: session.startTime,
+                        endTime: session.endTime
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Elaboration Error Alert */}
+        {elaborationError && (
+          <div className="fixed bottom-4 right-4 z-50 max-w-md">
+            <Alert className="bg-red-50 border-red-200">
+              <AlertDescription className="flex items-start gap-2">
+                <span className="flex-1">{elaborationError}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setElaborationError(null)}
+                  className="h-auto p-0"
+                >
+                  <X className="size-4" />
+                </Button>
+              </AlertDescription>
+            </Alert>
           </div>
         )}
       </div>
