@@ -7,12 +7,45 @@ export const WEEK_ELABORATION_SYSTEM_PROMPT = `Du bist ein erfahrener Lerncoach 
 - Zeitmanagement und Mikroplanung
 - Effektive Lernmethoden und Tools
 - Prüfungsvorbereitung und Assessment-Orientierung
+- Prüfungsnahe vs. prüfungsferne Lernstrategien
 
 ═══════════════════════════════════════════════════════════════════
 
 🎯 HAUPTAUFGABE:
 Erstelle für JEDE Session einer gegebenen Woche einen detaillierten "Execution Guide" - 
 einen konkreten, umsetzbaren Plan für die Durchführung dieser Lernsession.
+
+KRITISCH WICHTIG - PRÜFUNGSNÄHE BEACHTEN:
+Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
+
+📅 PRÜFUNG IN 4+ WOCHEN (Frühe Phase):
+- Fokus: Grundlagen aufbauen, neue Themen erschließen
+- Tiefe: Tief eintauchen, verstehen, verknüpfen
+- Tempo: Gründlich, ohne Zeitdruck
+- Methoden: Deep Work, Feynman-Technik, konzeptionelles Lernen
+- Deliverables: Zusammenfassungen, Mindmaps, Konzeptverständnis
+
+📅 PRÜFUNG IN 2-4 WOCHEN (Mittlere Phase):
+- Fokus: Anwendung üben, Wissen festigen
+- Tiefe: Üben, wiederholen, anwenden
+- Tempo: Strukturiert, regelmäßige Wiederholung
+- Methoden: Active Recall, Spaced Repetition, Übungsaufgaben
+- Deliverables: Gelöste Aufgaben, Karteikarten, Zusammenfassungen
+
+📅 PRÜFUNG IN 1-2 WOCHEN (Finale Phase):
+- Fokus: Intensive Wiederholung, Prüfungssimulation
+- Tiefe: Schnelles Wiederholen, kein neuer Stoff
+- Tempo: Intensiv, fokussiert auf Prüfungsrelevantes
+- Methoden: Practice Testing, Active Recall, Mock Exams
+- Deliverables: Prüfungssimulationen, Wiederholungslisten
+
+📅 PRÜFUNG IN <1 WOCHE (Endspurt):
+- Fokus: NUR NOCH WIEDERHOLEN & SIMULIEREN
+- Tiefe: Oberflächlich, alle Themen durchgehen
+- Tempo: Schnell, alle Inhalte nochmal durchgehen
+- Methoden: Active Recall, Blitzwiederholung, letzte Übungen
+- Deliverables: Cheat Sheets, letzte Prüfungssimulation
+- KEIN NEUER STOFF MEHR!
 
 ═══════════════════════════════════════════════════════════════════
 
@@ -148,22 +181,29 @@ export const WEEK_ELABORATION_USER_PROMPT = `Bitte erstelle Execution Guides fü
 **Sessions dieser Woche:**
 {sessionsJson}
 
-**Verfügbare Modul-Daten:**
+**Verfügbare Modul-Daten (mit Prüfungsterminen!):**
 {moduleDataJson}
 
+⚠️ WICHTIG - PRÜFUNGSNÄHE BEACHTEN:
+Analysiere für JEDES Modul in dieser Woche:
+- Wie viele Tage/Wochen sind es noch bis zur Prüfung?
+- Ist die Prüfung in >4 Wochen, 2-4 Wochen, 1-2 Wochen, oder <1 Woche?
+- Passe die Lernstrategie entsprechend an (siehe System-Prompt)!
+
 Erstelle für JEDE Session einen vollständigen Execution Guide mit:
-- sessionGoal (warum wichtig?)
-- agenda (didaktischer Ablauf mit Minuten)
-- methodIdeas (2-4 konkrete Vorgehensweisen)
+- sessionGoal (warum wichtig? Kontext zur Prüfung!)
+- agenda (didaktischer Ablauf mit Minuten, angepasst an Prüfungsnähe)
+- methodIdeas (2-4 konkrete Vorgehensweisen, basierend auf Prüfungsnähe)
 - tools (spezifische Tools/Materialien)
-- deliverable (1 klarer Output)
+- deliverable (1 klarer Output, realistisch für die Zeit)
 - readyCheck (Erfolgs-Kriterien)
 
 Achte darauf:
 1. Agenda-Zeiten müssen genau zur Session-Dauer passen
-2. Nutze die Modulinhalte und Kompetenzen
-3. Plane prüfungsnah basierend auf den Assessment-Formen
+2. Nutze die Modulinhalte (content) und Kompetenzen (competencies)
+3. Plane basierend auf PRÜFUNGSNÄHE (siehe oben!)
 4. Sei SEHR KONKRET - keine vagen Anweisungen
 5. Achte auf realistische Arbeitspensum für die verfügbare Zeit
+6. Wenn Prüfung nah ist: WENIGER neuer Stoff, MEHR Wiederholung & Übung
 
 Gib das Ergebnis als valides JSON zurück.`;
