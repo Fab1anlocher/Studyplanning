@@ -860,6 +860,80 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
 
 
 
+  // Helper function to render exam cards for a specific date
+  const renderExamsForDate = useCallback((date: Date) => {
+    const examsToShow: JSX.Element[] = [];
+    
+    actualModules.forEach((module) => {
+      // Check assessments array for deadlines
+      if (module.assessments && Array.isArray(module.assessments)) {
+        module.assessments.forEach((assessment: any, assessmentIdx: number) => {
+          if (assessment.deadline) {
+            const examDate = new Date(assessment.deadline);
+            if (examDate.toDateString() === date.toDateString()) {
+              examsToShow.push(
+                <div
+                  key={`exam-${module.id || module.name}-${assessmentIdx}`}
+                  className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+                  title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format || ''})`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Calendar className="size-3.5 flex-shrink-0" />
+                    <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
+                  </div>
+                  <div className="font-bold text-sm mb-1 leading-tight">
+                    {module.name}
+                  </div>
+                  <div className="text-xs font-medium">
+                    {assessment.type}
+                  </div>
+                  {assessment.format && (
+                    <div className="text-xs mt-1 bg-red-900/30 px-1.5 py-0.5 rounded inline-block">
+                      {assessment.format}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+          }
+        });
+      }
+      
+      // Check old examDate field (backward compatibility - only if no assessments matched this date)
+      // This ensures we don't duplicate exams if assessments are available
+      const hasAssessmentOnThisDate = module.assessments?.some((a: any) => {
+        if (a.deadline) {
+          const aDate = new Date(a.deadline);
+          return aDate.toDateString() === date.toDateString();
+        }
+        return false;
+      });
+      
+      if (module.examDate && !hasAssessmentOnThisDate) {
+        const examDate = new Date(module.examDate);
+        if (examDate.toDateString() === date.toDateString()) {
+          examsToShow.push(
+            <div
+              key={`exam-${module.id || module.name}-main`}
+              className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+              title={`Prüfung: ${module.name}`}
+            >
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Calendar className="size-3.5 flex-shrink-0" />
+                <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
+              </div>
+              <div className="font-bold text-sm leading-tight">
+                {module.name}
+              </div>
+            </div>
+          );
+        }
+      }
+    });
+    
+    return examsToShow;
+  }, [actualModules]);
+
   // Kalender-Logik - Memoized to prevent recalculation on every render
   const getWeeksInMonth = useCallback((year: number, month: number) => {
     const weeks = [];
@@ -1176,68 +1250,8 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                           {date.getDate()}
                         </div>
                         <div className="space-y-1">
-                          {/* Prüfungstermine - both from assessments and examDate field */}
-                          {actualModules.map((module) => {
-                            const examsToShow: JSX.Element[] = [];
-                            
-                            // Check assessments array for deadline
-                            if (module.assessments && Array.isArray(module.assessments)) {
-                              module.assessments.forEach((assessment: any, assessmentIdx: number) => {
-                                if (assessment.deadline) {
-                                  const examDate = new Date(assessment.deadline);
-                                  if (examDate.toDateString() === date.toDateString()) {
-                                    examsToShow.push(
-                                      <div
-                                        key={`exam-${module.id || module.name}-${assessmentIdx}`}
-                                        className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
-                                        title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format || ''})`}
-                                      >
-                                        <div className="flex items-center gap-1.5 mb-1.5">
-                                          <Calendar className="size-3.5 flex-shrink-0" />
-                                          <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
-                                        </div>
-                                        <div className="font-bold text-sm mb-1 leading-tight">
-                                          {module.name}
-                                        </div>
-                                        <div className="text-xs font-medium">
-                                          {assessment.type}
-                                        </div>
-                                        {assessment.format && (
-                                          <div className="text-xs mt-1 bg-red-900/30 px-1.5 py-0.5 rounded inline-block">
-                                            {assessment.format}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  }
-                                }
-                              });
-                            }
-                            
-                            // Also check old examDate field (backward compatibility)
-                            if (module.examDate && examsToShow.length === 0) {
-                              const examDate = new Date(module.examDate);
-                              if (examDate.toDateString() === date.toDateString()) {
-                                examsToShow.push(
-                                  <div
-                                    key={`exam-${module.id || module.name}-main`}
-                                    className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
-                                    title={`Prüfung: ${module.name}`}
-                                  >
-                                    <div className="flex items-center gap-1.5 mb-1.5">
-                                      <Calendar className="size-3.5 flex-shrink-0" />
-                                      <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
-                                    </div>
-                                    <div className="font-bold text-sm leading-tight">
-                                      {module.name}
-                                    </div>
-                                  </div>
-                                );
-                              }
-                            }
-                            
-                            return examsToShow;
-                          })}
+                          {/* Prüfungstermine - rendered via helper function */}
+                          {renderExamsForDate(date)}
                           
                           {/* Lernsessions */}
                           {sessions.map((session, idx) => {
