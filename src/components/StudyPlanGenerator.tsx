@@ -575,10 +575,14 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       // The actual prompt is loaded from src/prompts/studyPlanGenerator.ts
       */
 
+      const weeksBetween = calculateWeeksBetweenDates(startDate, lastExamDate);
+      const minSessions = weeksBetween * actualTimeSlots.length;
+      
       const userPrompt = STUDY_PLAN_USER_PROMPT
         .replace('{planningData}', JSON.stringify(planningData, null, 2))
-        .replace('{weeksBetween}', calculateWeeksBetweenDates(startDate, lastExamDate).toString())
-        .replace('{totalSlotsPerWeek}', actualTimeSlots.length.toString());
+        .replace('{weeksBetween}', weeksBetween.toString())
+        .replace('{totalSlotsPerWeek}', actualTimeSlots.length.toString())
+        .replace('{minSessions}', minSessions.toString());
       
       console.log('Generiere KI-Lernplan mit DeepSeek:', planningData);
       console.log(`Erwartete Sessions: ~${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length}`);
@@ -871,7 +875,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       
       console.log('[WeekElaboration] Found sessions:', weekSessions.length);
       
-      // Prepare module data
+      // Prepare module data with deadline information for exam-aware planning
       const moduleData = actualModules.map(module => ({
         name: module.name,
         content: module.content || [],
@@ -881,8 +885,11 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
           type: a.type,
           weight: a.weight,
           format: a.format,
+          deadline: a.deadline, // IMPORTANT: Include deadline for exam-aware planning
           tools: a.tools || []
-        }))
+        })),
+        // Also include old examDate field if assessments don't have deadlines
+        examDate: module.examDate
       }));
       
       // Prepare request
@@ -1266,31 +1273,34 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                           {date.getDate()}
                         </div>
                         <div className="space-y-1">
-                          {/* Prüfungstermine */}
+                          {/* Prüfungstermine - both from assessments and examDate field */}
                           {actualModules.map((module) => {
+                            const examsToShow: JSX.Element[] = [];
+                            
+                            // Check assessments array for deadline
                             if (module.assessments && Array.isArray(module.assessments)) {
-                              return module.assessments.map((assessment: any, assessmentIdx: number) => {
+                              module.assessments.forEach((assessment: any, assessmentIdx: number) => {
                                 if (assessment.deadline) {
                                   const examDate = new Date(assessment.deadline);
                                   if (examDate.toDateString() === date.toDateString()) {
-                                    return (
+                                    examsToShow.push(
                                       <div
                                         key={`exam-${module.id || module.name}-${assessmentIdx}`}
-                                        className="bg-gradient-to-br from-red-500 to-red-700 text-white p-3 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
-                                        title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format})`}
+                                        className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+                                        title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format || ''})`}
                                       >
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <Calendar className="size-4 flex-shrink-0" />
-                                          <span className="font-bold text-sm tracking-wide">PRÜFUNG</span>
+                                        <div className="flex items-center gap-1.5 mb-1.5">
+                                          <Calendar className="size-3.5 flex-shrink-0" />
+                                          <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
                                         </div>
-                                        <div className="font-bold text-base mb-1">
+                                        <div className="font-bold text-sm mb-1 leading-tight">
                                           {module.name}
                                         </div>
-                                        <div className="text-sm font-medium mt-1">
+                                        <div className="text-xs font-medium">
                                           {assessment.type}
                                         </div>
                                         {assessment.format && (
-                                          <div className="text-xs mt-1.5 bg-red-900/30 px-2 py-0.5 rounded inline-block">
+                                          <div className="text-xs mt-1 bg-red-900/30 px-1.5 py-0.5 rounded inline-block">
                                             {assessment.format}
                                           </div>
                                         )}
@@ -1298,10 +1308,32 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                                     );
                                   }
                                 }
-                                return null;
                               });
                             }
-                            return null;
+                            
+                            // Also check old examDate field (backward compatibility)
+                            if (module.examDate && examsToShow.length === 0) {
+                              const examDate = new Date(module.examDate);
+                              if (examDate.toDateString() === date.toDateString()) {
+                                examsToShow.push(
+                                  <div
+                                    key={`exam-${module.id || module.name}-main`}
+                                    className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+                                    title={`Prüfung: ${module.name}`}
+                                  >
+                                    <div className="flex items-center gap-1.5 mb-1.5">
+                                      <Calendar className="size-3.5 flex-shrink-0" />
+                                      <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
+                                    </div>
+                                    <div className="font-bold text-sm leading-tight">
+                                      {module.name}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            }
+                            
+                            return examsToShow;
                           })}
                           
                           {/* Lernsessions */}
