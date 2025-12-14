@@ -702,77 +702,82 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                   {module.assessments.map((assessment, assessmentIndex) => (
                     <div 
                       key={assessment.id}
-                      className={`p-4 rounded-lg border-2 transition-all ${
+                      className={`p-5 rounded-xl border-2 transition-all shadow-sm ${
                         assessment.deadline 
-                          ? 'bg-green-50 border-green-200' 
-                          : 'bg-orange-50 border-orange-300 border-dashed'
+                          ? 'bg-white border-green-400 shadow-green-100' 
+                          : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-400 border-dashed shadow-orange-100'
                       }`}
                     >
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                         <div className="md:col-span-1 flex items-center justify-center">
                           {assessment.deadline ? (
-                            <div className="bg-green-500 rounded-full p-1">
-                              <Check className="size-4 text-white" />
+                            <div className="bg-green-600 rounded-full p-1.5 shadow-md">
+                              <Check className="size-5 text-white" />
                             </div>
                           ) : (
-                            <div className="bg-orange-500 text-white rounded-full size-6 flex items-center justify-center text-xs">
+                            <div className="bg-orange-600 text-white rounded-full size-8 flex items-center justify-center text-sm font-bold shadow-md">
                               !
                             </div>
                           )}
                         </div>
                         
                         <div className="md:col-span-3">
-                          <div className="space-y-1">
+                          <div className="space-y-2">
                             <div className="relative group">
+                              <Label className="text-xs font-semibold text-gray-700 mb-1 block">Prüfungstyp</Label>
                               <Input
                                 value={assessment.type}
                                 onChange={(e) => updateAssessmentType(module.id, assessment.id, e.target.value)}
-                                className="text-sm bg-gray-50 border-gray-200 focus:bg-white transition-colors cursor-pointer"
-                                placeholder="Prüfungstyp"
-                                onFocus={(e) => e.target.classList.add('bg-white')}
-                                onBlur={(e) => !e.target.value && e.target.classList.remove('bg-white')}
+                                className="text-sm font-semibold bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
+                                placeholder="z.B. Schriftliche Prüfung"
                               />
                             </div>
                             <div className="relative group">
+                              <Label className="text-xs font-semibold text-gray-700 mb-1 block">Format</Label>
                               <Input
                                 value={assessment.format}
                                 onChange={(e) => updateAssessmentFormat(module.id, assessment.id, e.target.value)}
-                                className="text-xs bg-gray-50 border-gray-200 focus:bg-white transition-colors cursor-pointer"
-                                placeholder="Format"
-                                onFocus={(e) => e.target.classList.add('bg-white')}
-                                onBlur={(e) => !e.target.value && e.target.classList.remove('bg-white')}
+                                className="text-sm bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
+                                placeholder="z.B. Einzelarbeit"
                               />
                             </div>
                           </div>
                         </div>
                         
                         <div className="md:col-span-2">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="number"
-                              value={assessment.weight}
-                              onChange={(e) => updateAssessmentWeight(module.id, assessment.id, parseInt(e.target.value) || 0)}
-                              className="h-8 w-16 text-sm"
-                              min="0"
-                              max="100"
-                            />
-                            <span className="text-sm text-gray-600">%</span>
+                          <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-gray-700 mb-1 block">Gewichtung</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                value={assessment.weight}
+                                onChange={(e) => updateAssessmentWeight(module.id, assessment.id, parseInt(e.target.value) || 0)}
+                                className="h-9 w-20 text-sm font-bold bg-white border-gray-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                                min="0"
+                                max="100"
+                              />
+                              <span className="text-sm font-semibold text-gray-700">%</span>
+                            </div>
                           </div>
                         </div>
                         
                         <div className="md:col-span-4">
                           <div className="space-y-1">
-                            <Label htmlFor={`deadline-${assessment.id}`} className="text-xs font-medium">
-                              Prüfungsdatum *
+                            <Label htmlFor={`deadline-${assessment.id}`} className="text-xs font-semibold text-gray-700 mb-1 block">
+                              Prüfungsdatum * {!assessment.deadline && <span className="text-orange-600">(Erforderlich)</span>}
                             </Label>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="size-4 text-gray-400 flex-shrink-0" />
+                            <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border-2 transition-all" style={{
+                              borderColor: assessment.deadline ? '#22c55e' : '#fb923c'
+                            }}>
+                              <Calendar className="size-5 flex-shrink-0" style={{
+                                color: assessment.deadline ? '#16a34a' : '#ea580c'
+                              }} />
                               <Input
                                 id={`deadline-${assessment.id}`}
                                 type="date"
                                 value={assessment.deadline}
                                 onChange={(e) => updateAssessmentDeadline(module.id, assessment.id, e.target.value)}
-                                className={`flex-1 text-sm ${!assessment.deadline ? 'border-orange-400 border-2' : 'border-green-400'}`}
+                                className="flex-1 text-sm font-semibold border-0 focus:ring-0 p-0 bg-transparent"
                                 style={{ minWidth: '160px' }}
                               />
                             </div>

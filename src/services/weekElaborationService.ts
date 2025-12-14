@@ -101,7 +101,7 @@ export async function generateWeekElaboration(
   
   try {
     const response = await openai.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: WEEK_ELABORATION_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt }

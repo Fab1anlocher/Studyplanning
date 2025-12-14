@@ -218,6 +218,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // For month navigation
   const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null); // For learning method tooltips
+  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null); // For week elaboration feature
   
   // Week detail view state
   const [showWeekDetail, setShowWeekDetail] = useState<Date | null>(null); // Week start date
@@ -593,7 +594,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       });
       
       const response = await openai.chat.completions.create({
-        model: 'deepseek-chat',
+        model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -862,7 +863,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
 
   // Helper function to render exam cards for a specific date
   const renderExamsForDate = useCallback((date: Date) => {
-    const examsToShow: JSX.Element[] = [];
+    const examsToShow: React.ReactElement[] = [];
     
     actualModules.forEach((module) => {
       // Check assessments array for deadlines
@@ -1346,7 +1347,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                               variant="link"
                               size="sm"
                               className="text-xs h-auto p-0 text-orange-600 hover:text-orange-700"
-                              onClick={(e) => {
+                              onClick={(e: React.MouseEvent) => {
                                 e.stopPropagation();
                                 setShowExecutionGuide(session.id);
                               }}
@@ -1370,46 +1371,11 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                     
                     <CollapsibleContent>
                       <div className="px-4 pb-4 pt-0 space-y-3 border-t border-gray-200 mt-2">
-                        {/* Content Topics */}
-                        {session.contentTopics && session.contentTopics.length > 0 && (
-                          <div className="bg-blue-50 p-3 rounded-lg mt-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <BookOpen className="size-4 text-blue-600" />
-                              <h5 className="text-sm font-medium text-gray-900">Zu bearbeitende Themen</h5>
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                              {session.contentTopics.map((topic, idx) => (
-                                <li key={idx}>{topic}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        
-                        {/* Competencies */}
-                        {session.competencies && session.competencies.length > 0 && (
-                          <div className="bg-green-50 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CheckCircle2 className="size-4 text-green-600" />
-                              <h5 className="text-sm font-medium text-gray-900">Kompetenzen entwickeln</h5>
-                            </div>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                              {session.competencies.map((comp, idx) => (
-                                <li key={idx}>{comp}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        
-                        {/* Study Tips */}
-                        {session.studyTips && (
-                          <div className="bg-yellow-50 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Lightbulb className="size-4 text-yellow-600" />
-                              <h5 className="text-sm font-medium text-gray-900">Lerntipps</h5>
-                            </div>
-                            <p className="text-sm text-gray-700">{session.studyTips}</p>
-                          </div>
-                        )}
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <p className="text-sm text-gray-600 text-center">
+                            Detaillierte Informationen und Ausarbeitung verfügbar im <strong>Execution Guide</strong>
+                          </p>
+                        </div>
                       </div>
                     </CollapsibleContent>
                   </div>
