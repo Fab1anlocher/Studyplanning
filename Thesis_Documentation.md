@@ -161,14 +161,16 @@ Diese Informationen sind als statischer Content in der Anwendung hinterlegt, bas
 
 ### 7.2.4 Screenshots im Anhang
 
-*(Hinweis: Die Screenshots sollten folgende Screens zeigen:)*
-- *Screenshot 1: Welcome Page mit CTA*
-- *Screenshot 2: API-Key Eingabeseite*
-- *Screenshot 3: Module Upload mit extrahierten Daten*
-- *Screenshot 4: Wochenplaner mit ausgewählten Zeitslots*
-- *Screenshot 5: Generierter Lernplan in Kalenderansicht*
-- *Screenshot 6: Expandierte Session-Details mit Lernmethode*
-- *Screenshot 7: Module Learning Guide Übersicht*
+**TODO:** Für die finale Version der Arbeit sollten Screenshots der folgenden Anwendungsscreens im Anhang eingefügt werden:
+- Screenshot 1: Welcome Page mit Call-to-Action Button
+- Screenshot 2: API-Key Eingabeseite mit Hinweisen
+- Screenshot 3: Module Upload Interface mit extrahierten Moduldaten
+- Screenshot 4: Interaktiver Wochenplaner mit ausgewählten Zeitslots
+- Screenshot 5: Generierter Lernplan in Kalenderansicht
+- Screenshot 6: Expandierte Session-Details mit Lernmethoden-Badge
+- Screenshot 7: Module Learning Guide mit detaillierten Empfehlungen
+
+Die Screenshots können durch Ausführen der Anwendung (`npm run dev`) und Navigation durch den kompletten Onboarding-Flow erstellt werden.
 
 ## 7.3 Limitations and Technical Constraints
 
@@ -310,8 +312,8 @@ Für einen inklusiven Produktiveinsatz wären Accessibility-Audits und entsprech
 **Kostenmodell und soziale Gerechtigkeit:**
 
 Die Anforderung eines persönlichen OpenAI API-Keys schafft eine finanzielle Barriere:
-- Kosten von ca. €0.15-0.50 pro Lernplan-Generierung
-- Notwendigkeit einer Kreditkarte für API-Account
+- Geschätzte Kosten von ca. €0.15-0.50 pro Lernplan-Generierung (Stand: Dezember 2024, basierend auf GPT-4o-mini Preismodell, unterliegt Änderungen)
+- Notwendigkeit einer Kreditkarte für API-Account-Erstellung
 - Potenzieller Ausschluss finanziell benachteiligter Studierender
 
 Ein nachhaltiges Produktmodell müsste entweder:
