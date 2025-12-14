@@ -14,6 +14,7 @@ import { ExecutionGuide } from '../types/executionGuide';
 import { generateWeekElaboration, getSessionsForWeek, formatDateISO } from '../services/weekElaborationService';
 import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide } from '../services/executionGuideStorage';
 import { ExecutionGuideView } from './ExecutionGuideView';
+import { WeekDetailView } from './WeekDetailView';
 import { toast } from 'sonner';
 
 // REVIEW: Constants for pedagogical and validation rules
@@ -218,10 +219,8 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // For month navigation
   const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null); // For learning method tooltips
   
-  // Week elaboration state
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date | null>(null);
-  const [isElaboratingWeek, setIsElaboratingWeek] = useState(false);
-  const [elaborationError, setElaborationError] = useState<string | null>(null);
+  // Week detail view state
+  const [showWeekDetail, setShowWeekDetail] = useState<Date | null>(null); // Week start date
   const [showExecutionGuide, setShowExecutionGuide] = useState<string | null>(null); // sessionId
 
   const generatePlan = useCallback(async () => {
@@ -859,86 +858,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
     }
   }, [actualModules, actualTimeSlots, propApiKey]);
 
-  // Week elaboration handler
-  const handleElaborateWeek = useCallback(async (weekStartDate: Date) => {
-    console.log('[WeekElaboration] Starting elaboration for week:', weekStartDate);
-    setIsElaboratingWeek(true);
-    setElaborationError(null);
-    
-    try {
-      // Get sessions for this week
-      const weekSessions = getSessionsForWeek(studySessions, weekStartDate);
-      
-      if (weekSessions.length === 0) {
-        throw new Error('Keine Sessions in dieser Woche gefunden');
-      }
-      
-      console.log('[WeekElaboration] Found sessions:', weekSessions.length);
-      
-      // Prepare module data with deadline information for exam-aware planning
-      const moduleData = actualModules.map(module => ({
-        name: module.name,
-        content: module.content || [],
-        competencies: module.competencies || [],
-        teachingMethods: module.teachingMethods || [],
-        assessments: (module.assessments || []).map((a: any) => ({
-          type: a.type,
-          weight: a.weight,
-          format: a.format,
-          deadline: a.deadline, // IMPORTANT: Include deadline for exam-aware planning
-          tools: a.tools || []
-        })),
-        // Also include old examDate field if assessments don't have deadlines
-        examDate: module.examDate
-      }));
-      
-      // Prepare request
-      const weekEnd = new Date(weekStartDate);
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      
-      const request = {
-        week: {
-          startDate: formatDateISO(weekStartDate),
-          endDate: formatDateISO(weekEnd)
-        },
-        sessions: weekSessions.map(s => ({
-          id: s.id,
-          date: s.date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          module: s.module,
-          topic: s.topic,
-          description: s.description,
-          learningMethod: s.learningMethod,
-          contentTopics: s.contentTopics,
-          competencies: s.competencies
-        })),
-        moduleData: moduleData
-      };
-      
-      // Call LLM service
-      const response = await generateWeekElaboration(request, propApiKey);
-      
-      console.log('[WeekElaboration] Received guides:', response.executionGuides.length);
-      
-      // Save to localStorage
-      saveExecutionGuides(response.executionGuides);
-      
-      setIsElaboratingWeek(false);
-      setSelectedWeekStart(null); // Close week selection
-      
-      // Show success notification
-      toast.success('Woche erfolgreich ausgearbeitet!', {
-        description: `${response.executionGuides.length} Sessions wurden mit Execution Guides angereichert.`,
-        duration: 5000,
-      });
-      
-    } catch (error) {
-      console.error('[WeekElaboration] Error:', error);
-      setElaborationError(error instanceof Error ? error.message : 'Fehler beim Ausarbeiten der Woche');
-      setIsElaboratingWeek(false);
-    }
-  }, [studySessions, actualModules, propApiKey]);
+
 
   // Kalender-Logik - Memoized to prevent recalculation on every render
   const getWeeksInMonth = useCallback((year: number, month: number) => {
@@ -1000,6 +920,20 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
   const handleNextMonth = () => {
     setCurrentMonthOffset(prev => prev + 1);
   };
+
+  // Show week detail view if a week is selected
+  if (showWeekDetail) {
+    const weekSessions = getSessionsForWeek(studySessions, showWeekDetail);
+    return (
+      <WeekDetailView
+        weekStartDate={showWeekDetail}
+        sessions={weekSessions}
+        modules={actualModules}
+        apiKey={propApiKey}
+        onBack={() => setShowWeekDetail(null)}
+      />
+    );
+  }
 
   if (!planGenerated) {
     return (
@@ -1172,8 +1106,9 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
               <Alert className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
                 <Zap className="size-4 text-orange-600" />
                 <AlertDescription>
-                  <strong>Neu:</strong> Klicke auf eine Woche (Montag), um sie detailliert auszuarbeiten. 
-                  Du erhältst für alle Sessions konkrete Ablaufpläne, Tools und Erfolgskriterien.
+                  <strong>Neu:</strong> Klicke auf eine Woche, um zur Wochenansicht zu gelangen. 
+                  Dort kannst du die Woche detailliert ausarbeiten und erhältst für alle Sessions 
+                  konkrete Ablaufpläne, Tools und Erfolgskriterien.
                 </AlertDescription>
               </Alert>
             </div>
@@ -1199,54 +1134,22 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                 
                 return (
                   <div key={weekIndex} className="space-y-2">
-                    {/* Week elaboration button - show on hover or when selected */}
+                    {/* Week detail button */}
                     {weekSessions.length > 0 && (
                       <div className="flex items-center gap-2 px-1">
                         <Button
-                          variant={isSelectedWeek ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          className={`text-xs ${isSelectedWeek ? 'bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600' : ''}`}
-                          onClick={() => {
-                            if (isSelectedWeek) {
-                              handleElaborateWeek(weekMonday);
-                            } else {
-                              setSelectedWeekStart(weekMonday);
-                            }
-                          }}
-                          disabled={isElaboratingWeek}
+                          className="text-xs hover:bg-orange-50 hover:border-orange-300"
+                          onClick={() => setShowWeekDetail(weekMonday)}
                         >
-                          {isElaboratingWeek && isSelectedWeek ? (
-                            <>
-                              <RefreshCw className="size-3 mr-1 animate-spin" />
-                              Wird ausgearbeitet...
-                            </>
-                          ) : isSelectedWeek ? (
-                            <>
-                              <Zap className="size-3 mr-1" />
-                              Woche ausarbeiten ({weekSessions.length} Sessions)
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="size-3 mr-1" />
-                              Woche {formatDateISO(weekMonday)} auswählen
-                            </>
-                          )}
+                          <Calendar className="size-3 mr-1" />
+                          Woche öffnen ({weekSessions.length} Sessions)
                         </Button>
-                        {isSelectedWeek && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => setSelectedWeekStart(null)}
-                            disabled={isElaboratingWeek}
-                          >
-                            <X className="size-3" />
-                          </Button>
-                        )}
                       </div>
                     )}
                     
-                    <div className={`grid grid-cols-7 gap-2 ${isSelectedWeek ? 'ring-2 ring-orange-400 rounded-lg p-1' : ''}`}>
+                    <div className="grid grid-cols-7 gap-2">
                       {week.map((date, dayIndex) => {
                         const sessions = getSessionsForDate(date);
                         const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
@@ -1613,25 +1516,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
             </div>
           );
         })()}
-
-        {/* Elaboration Error Alert */}
-        {elaborationError && (
-          <div className="fixed bottom-4 right-4 z-50 max-w-md">
-            <Alert className="bg-red-50 border-red-200">
-              <AlertDescription className="flex items-start gap-2">
-                <span className="flex-1">{elaborationError}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setElaborationError(null)}
-                  className="h-auto p-0"
-                >
-                  <X className="size-4" />
-                </Button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
       </div>
     </div>
   );
