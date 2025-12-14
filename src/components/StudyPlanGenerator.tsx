@@ -809,16 +809,18 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         const percentage = ((count / validatedSessions.length) * 100).toFixed(1);
         console.log(`  - ${moduleName}: ${count} Sessions (${percentage}%)`);
         
-        // Warn if module has less than 10% of total sessions OR less than 3 sessions total
-        // (whichever is more restrictive for fairness)
-        const minExpectedPercentage = 100 / actualModules.length * 0.5; // At least 50% of fair share
-        if (count < validatedSessions.length * (minExpectedPercentage / 100) || count < 3) {
-          distributionWarnings.push(`⚠️ WARNUNG: Modul "${moduleName}" hat nur ${count} Sessions (${percentage}%) - möglicherweise zu wenig! Erwartet: mind. ${minExpectedPercentage.toFixed(1)}%`);
-        }
+        // Calculate minimum expected percentage: at least 50% of a fair share
+        // (fair share = 100% / number of modules)
+        // E.g., with 3 modules: fair share = 33.3%, minimum = 16.7%
+        const minExpectedPercentage = 100 / actualModules.length * 0.5;
         
-        // Warn if a module has 0 sessions
+        // Check if module is under-represented
         if (count === 0) {
+          // Critical: module has NO sessions at all
           distributionWarnings.push(`❌ FEHLER: Modul "${moduleName}" hat KEINE Sessions! Bitte Plan neu generieren.`);
+        } else if (count < validatedSessions.length * (minExpectedPercentage / 100) || count < 3) {
+          // Warning: module has too few sessions
+          distributionWarnings.push(`⚠️ WARNUNG: Modul "${moduleName}" hat nur ${count} Sessions (${percentage}%) - möglicherweise zu wenig! Erwartet: mind. ${minExpectedPercentage.toFixed(1)}%`);
         }
       });
       
