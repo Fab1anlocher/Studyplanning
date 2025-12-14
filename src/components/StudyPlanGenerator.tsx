@@ -792,6 +792,51 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         console.log('[StudyPlanGenerator] ✅ Pedagogical validation passed - no major concerns');
       }
       
+      // CRITICAL: Validate module distribution - ensure ALL modules get sessions
+      const moduleDistribution = new Map<string, number>();
+      actualModules.forEach(module => {
+        moduleDistribution.set(module.name, 0);
+      });
+      
+      validatedSessions.forEach(session => {
+        const current = moduleDistribution.get(session.module) || 0;
+        moduleDistribution.set(session.module, current + 1);
+      });
+      
+      console.log('[StudyPlanGenerator] Module Distribution:');
+      const distributionWarnings: string[] = [];
+      moduleDistribution.forEach((count, moduleName) => {
+        const percentage = ((count / validatedSessions.length) * 100).toFixed(1);
+        console.log(`  - ${moduleName}: ${count} Sessions (${percentage}%)`);
+        
+        // Calculate minimum expected percentage: at least 50% of a fair share
+        // (fair share = 100% / number of modules)
+        // E.g., with 3 modules: fair share = 33.3%, minimum = 16.7%
+        const minExpectedPercentage = 100 / actualModules.length * 0.5;
+        
+        // Check if module is under-represented
+        if (count === 0) {
+          // Critical: module has NO sessions at all
+          distributionWarnings.push(`❌ FEHLER: Modul "${moduleName}" hat KEINE Sessions! Bitte Plan neu generieren.`);
+        } else if (count < validatedSessions.length * (minExpectedPercentage / 100) || count < 3) {
+          // Warning: module has too few sessions
+          distributionWarnings.push(`⚠️ WARNUNG: Modul "${moduleName}" hat nur ${count} Sessions (${percentage}%) - möglicherweise zu wenig! Erwartet: mind. ${minExpectedPercentage.toFixed(1)}%`);
+        }
+      });
+      
+      if (distributionWarnings.length > 0) {
+        console.warn('[StudyPlanGenerator] Module Distribution Warnings:');
+        distributionWarnings.forEach(warning => console.warn(warning));
+        
+        // Show toast notification to user
+        toast.error('Modul-Verteilung problematisch', {
+          description: `Einige Module haben zu wenige oder keine Sessions. Siehe Browser-Konsole für Details. Bitte Plan neu generieren.`,
+          duration: 8000
+        });
+      } else {
+        console.log('[StudyPlanGenerator] ✅ Module distribution validated - all modules represented');
+      }
+      
       setStudySessions(validatedSessions);
       setPlanGenerated(true);
       setIsGenerating(false);
@@ -875,21 +920,21 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
               examsToShow.push(
                 <div
                   key={`exam-${module.id || module.name}-${assessmentIdx}`}
-                  className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+                  className="bg-gradient-to-br from-red-500 to-red-700 p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
                   title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format || ''})`}
                 >
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Calendar className="size-3.5 flex-shrink-0" />
-                    <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
+                  <div className="flex items-center gap-1.5 mb-1.5 text-white">
+                    <Calendar className="size-3.5 flex-shrink-0 text-white" />
+                    <span className="font-bold text-xs tracking-wide uppercase text-white">Prüfung</span>
                   </div>
-                  <div className="font-bold text-sm mb-1 leading-tight">
+                  <div className="font-bold text-sm mb-1 leading-tight text-white">
                     {module.name}
                   </div>
-                  <div className="text-xs font-medium">
+                  <div className="text-xs font-medium text-white">
                     {assessment.type}
                   </div>
                   {assessment.format && (
-                    <div className="text-xs mt-1 bg-red-900/30 px-1.5 py-0.5 rounded inline-block">
+                    <div className="text-xs mt-1 bg-red-900/30 px-1.5 py-0.5 rounded inline-block text-white">
                       {assessment.format}
                     </div>
                   )}
@@ -916,14 +961,14 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
           examsToShow.push(
             <div
               key={`exam-${module.id || module.name}-main`}
-              className="bg-gradient-to-br from-red-500 to-red-700 text-white p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+              className="bg-gradient-to-br from-red-500 to-red-700 p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
               title={`Prüfung: ${module.name}`}
             >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Calendar className="size-3.5 flex-shrink-0" />
-                <span className="font-bold text-xs tracking-wide uppercase">Prüfung</span>
+              <div className="flex items-center gap-1.5 mb-1.5 text-white">
+                <Calendar className="size-3.5 flex-shrink-0 text-white" />
+                <span className="font-bold text-xs tracking-wide uppercase text-white">Prüfung</span>
               </div>
-              <div className="font-bold text-sm leading-tight">
+              <div className="font-bold text-sm leading-tight text-white">
                 {module.name}
               </div>
             </div>

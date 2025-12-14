@@ -53,18 +53,33 @@ Erstelle einen VOLLSTÄNDIGEN Lernplan für das GESAMTE Semester, der:
 
 📋 PLANUNGSSTRATEGIE:
 
-1. ZEITVERTEILUNG:
+1. MODUL-VERTEILUNG (KRITISCH - ALLE MODULE MÜSSEN ABGEDECKT WERDEN!):
+   ⚠️ **WICHTIGSTE REGEL**: Jedes Modul MUSS einen fairen Anteil der Sessions bekommen!
+   
+   - Berechne für JEDES Modul seine "verfügbaren Wochen" (von Start bis lastDeadline)
+   - Verteile Sessions proportional zu ECTS und verfügbaren Wochen
+   - **NIEMALS** ein Modul vernachlässigen oder vergessen!
+   - Wechsle regelmäßig zwischen Modulen (Interleaving)
+   - Wenn ein Modul-Deadline erreicht ist: Verteile dessen Slots auf verbleibende Module
+   
+   Beispiel mit 3 Modulen:
+   - Modul A (6 ECTS, deadline: 2025-02-01) → ca. 40% der Sessions bis Februar
+   - Modul B (4 ECTS, deadline: 2025-02-15) → ca. 30% der Sessions bis Mitte Februar
+   - Modul C (5 ECTS, deadline: 2025-02-15) → ca. 30% der Sessions bis Mitte Februar
+   → Wechsle zwischen A, B, C in den ersten Wochen!
+
+2. ZEITVERTEILUNG:
    - Berücksichtige ECTS-Punkte (höhere ECTS = mehr Zeit)
    - Berücksichtige Assessment-Gewichtungen
    - Verteile Workload gleichmäßig über verfügbare Wochen
-   - Wechsle zwischen Modulen für bessere Retention
+   - Wechsle zwischen Modulen für bessere Retention (CRITICAL!)
 
-2. PRÜFUNGSVORBEREITUNG:
-   - Letzte 4 Wochen: Erhöhte Wiederholung
-   - Letzte 2 Wochen: Intensive Wiederholung, KEIN neuer Stoff
-   - Letzte Woche: Nur Prüfungssimulation & Active Recall
+3. PRÜFUNGSVORBEREITUNG:
+   - Letzte 4 Wochen vor JEDEM Modul-Deadline: Erhöhte Wiederholung
+   - Letzte 2 Wochen vor JEDEM Modul-Deadline: Intensive Wiederholung, KEIN neuer Stoff
+   - Letzte Woche vor JEDEM Modul-Deadline: Nur Prüfungssimulation & Active Recall
 
-3. METHODENWAHL:
+4. METHODENWAHL:
    Wähle passende Lernmethoden:
    - "Spaced Repetition" - Theorie, Begriffe, Grundlagen
    - "Active Recall" - Prüfungsvorbereitung, Selbsttests
@@ -131,6 +146,8 @@ Erstelle einen VOLLSTÄNDIGEN Semesterplan mit ALLEN Sessions von Anfang bis End
 4. Beachte die lastDeadline jedes Moduls - KEINE Sessions nach diesem Datum!
 5. Nach Ablauf eines Modul-Deadlines: Verteile die freien Zeitslots auf andere Module
 6. Der Student hat diese Zeit reserviert - NUTZE ALLE SLOTS!
+7. **ALLE MODULE MÜSSEN SESSIONS BEKOMMEN** - nicht nur ein Modul!
+8. Wechsle regelmäßig zwischen den Modulen (z.B. Modul A → Modul B → Modul C → Modul A...)
 
 📝 EINFACHHEIT IST KEY:
 - Halte topic ALLGEMEIN (z.B. "Grundlagen", "Vertiefung", "Wiederholung")
