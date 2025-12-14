@@ -51,15 +51,29 @@ Jede Lernsession im Plan enthält:
 
 ### 7.1.4 Anzeige von Fortschritt und Feedback
 
-Die Anwendung bietet mehrere Features zur Fortschrittsverfolgung und Unterstützung:
+Die Anwendung bietet mehrere Features zur Visualisierung und Organisation des Lernplans:
 
 **Visuelle Darstellung:**
 - **Kalenderansicht**: Übersichtliche Darstellung aller Lernsessions in einem monatlichen Kalender-Grid
 - **Farbcodierung**: Unterschiedliche Farben für verschiedene Module zur besseren Orientierung
-- **Session-Details**: Expandierbare Karten mit vollständigen Informationen zu jeder Lernsession
+- **Session-Details**: Expandierbare Karten mit vollständigen Informationen zu jeder Lernsession (Zeitfenster, Modulzuordnung, Lernthema, Beschreibung, empfohlene Lernmethode)
+- **Monatsnavigation**: Wechsel zwischen verschiedenen Monaten des Semesters
+- **Modulfilterung**: Fokussierte Ansicht einzelner Module
+
+**Export-Funktion:**
+Der generierte Lernplan kann als CSV-Datei exportiert werden mit allen Details:
+- Datum und Wochentag
+- Start- und Endzeit
+- Modulzuordnung
+- Thema und Beschreibung
+- Lernmethode
+- Inhalte und Kompetenzen
+- Lerntipps
+
+Dies ermöglicht die Weiterverarbeitung in Excel oder die Integration in andere Kalenderanwendungen.
 
 **Module Learning Guide:**
-Für jedes Modul kann ein detaillierter Lernguide generiert werden, der folgende Elemente umfasst:
+Für jedes Modul kann ein detaillierter, KI-generierter Lernguide angefordert werden, der folgende Elemente umfasst:
 - **Kompetenzübersicht**: Zu erwerbende Fähigkeiten und Kenntnisse
 - **Lernstrategie**: Detaillierte Erklärung der empfohlenen Methode mit Begründung
 - **Wochenplan**: Fokusthemen und Aufgaben für jede Woche bis zur Prüfung
@@ -68,11 +82,12 @@ Für jedes Modul kann ein detaillierter Lernguide generiert werden, der folgende
 - **Tipps und häufige Fehler**: Praktische Hinweise zur Vermeidung typischer Probleme
 - **Erfolgscheckliste**: Validierungspunkte zur Selbstüberprüfung
 
-**Study Assistant Interaktion:**
-Die Anwendung fungiert als interaktiver Studienassistent durch:
-- Bereitstellung methodischer Erklärungen für jede Lernmethode
-- Tipps zur praktischen Umsetzung der Sessions
-- Strukturierte Darstellung von Lernressourcen und Tools
+**Lernmethoden-Informationen:**
+Für jede empfohlene Lernmethode werden Erklärungen und praktische Anwendungstipps bereitgestellt:
+- Beschreibung der Methode (z.B. Spaced Repetition, Deep Work, Pomodoro)
+- Wissenschaftliche Begründung
+- Konkrete Umsetzungstipps
+- Ideal geeignete Szenarien
 
 ## 7.2 User Experience
 
@@ -106,10 +121,10 @@ Jedes Modul wird in einer übersichtlichen Card dargestellt, die folgende Inform
 
 **Schritt 4: Wochenplan-Definition**
 Der vierte Schritt ermöglicht die Definition verfügbarer Lernzeiten durch:
-- Interaktives Grid mit 7 Tagen × 12 Zeitslots (08:00-20:00 Uhr)
-- Click-to-Toggle Mechanismus für einzelne Slots
-- Schnellauswahl-Buttons für gängige Zeitfenster
-- Visuelle Bestätigung durch Farbänderung
+- Interaktives Grid mit 7 Tagen × 9 Zeitslots (06:00-24:00 Uhr in 2-Stunden-Blöcken)
+- Click-to-Toggle Mechanismus für einzelne Zeitblöcke
+- Schnellauswahl-Buttons für gängige Zeitfenster (Vormittags, Nachmittags, Abends, Ganztags)
+- Visuelle Bestätigung durch Farbänderung (Blau-Lila Gradient für ausgewählte Slots)
 
 **Schritt 5: Lernplan-Generierung und Ansicht**
 Im finalen Schritt wird der personalisierte Lernplan generiert und dargestellt. Die Generierung erfolgt durch einen expliziten "Plan generieren"-Button, der den API-Call initiiert.
@@ -132,32 +147,51 @@ Beim Klick auf eine Session öffnet sich ein Collapsible-Element mit vollständi
 - Empfohlene Lernmethode mit Badge
 - Praktische Tipps zur Umsetzung
 
-**Filter- und Sortieroptionen:**
-- Monatswahl zur Navigation durch den Semesterverlauf
-- Modulfilter zur fokussierten Ansicht einzelner Fächer
+**Navigationsoptionen:**
+- Monatswahl zur Navigation durch den Semesterverlauf (Vor/Zurück-Buttons)
+- Anzeige des aktuellen Monats mit allen geplanten Sessions
 
-### 7.2.3 Interaktion mit dem Study Assistant
+**Zusätzliche Funktionen:**
+- **Export-Button**: Speichert den gesamten Lernplan als CSV-Datei
+- **Regenerieren-Button**: Erstellt einen neuen Lernplan mit denselben Eingabedaten
+- **Modul-Lernguides**: Separate Cards für jedes Modul mit Button zum Öffnen eines detaillierten Lernguides
 
-Die Interaktion mit dem KI-gestützten Study Assistant erfolgt auf mehreren Ebenen:
+### 7.2.3 KI-gestützte Features
 
-**Initiale Plangenerierung:**
-Der Assistant analysiert die Nutzereingaben und erstellt einen holistischen Lernplan unter Berücksichtigung pädagogischer Best Practices. Die Interaktion erfolgt hier implizit durch die Strukturierung der Prompts und die Validierung der LLM-Ausgabe.
+Die Anwendung nutzt die OpenAI GPT-4o-mini API an zwei zentralen Stellen:
 
-**Module Learning Guide:**
-Für vertiefende Informationen zu einem spezifischen Modul können Nutzer einen detaillierten Lernguide anfordern. Der Assistant generiert dabei:
-- Eine modulspezifische Lernstrategie mit Begründung
-- Wöchentliche Fokusthemen und konkrete Aufgaben
-- Gestaffelte Prüfungsvorbereitungspläne
-- Praktische Tipps und Warnungen vor häufigen Fehlern
+**1. Automatische Modulextraktion (ModuleUpload):**
+Beim Upload einer Modulbeschreibung als PDF wird:
+- Der Text mittels PDF.js aus dem Dokument extrahiert
+- Die OpenAI API zur Analyse und strukturierten Extraktion verwendet
+- Ein JSON-Objekt mit Modulname, ECTS, Workload, Leistungsnachweisen und Inhalten generiert
+- Das Ergebnis in der UI angezeigt und kann manuell nachbearbeitet werden
 
-**Lernmethoden-Erklärungen:**
-Für jede empfohlene Lernmethode bietet die Anwendung:
-- Titel und kurze Beschreibung der Methode
-- Wissenschaftliche Begründung (wo relevant)
-- Praktische Anwendungstipps
-- Ideal geeignete Lernszenarien
+**2. Lernplan-Generierung (StudyPlanGenerator):**
+Bei der Plangenerierung analysiert die KI:
+- Alle Module mit ihren ECTS-Punkten, Workloads und Prüfungsterminen
+- Die verfügbaren Zeitslots der Woche
+- Den Zeitraum bis zur letzten Prüfung
 
-Diese Informationen sind als statischer Content in der Anwendung hinterlegt, basieren jedoch auf den KI-generierten Empfehlungen im Lernplan.
+Und erstellt daraus:
+- Konkrete Lernsessions mit Datum und Zeitfenster
+- Thematische Zuordnung und detaillierte Beschreibungen
+- Auswahl geeigneter Lernmethoden pro Session
+- Berücksichtigung pädagogischer Prinzipien (Spaced Repetition, Assessment-Gewichtung)
+
+**3. Module Learning Guide (ModuleLearningGuide):**
+Für einzelne Module kann ein vertiefender Lernguide generiert werden mit:
+- Modulspezifischer Lernstrategie und Begründung
+- Wöchentlichem Fokusplan mit konkreten Aufgaben
+- Gestaffelten Prüfungsvorbereitungs-Checklisten
+- Tipps zur Vermeidung häufiger Fehler
+
+**Lernmethoden-Informationen:**
+Zu den KI-empfohlenen Lernmethoden sind statische Erklärungen hinterlegt, die Details zur Anwendung bieten:
+- Deep Work, Pomodoro, Spaced Repetition, Active Recall, etc.
+- Beschreibung, wissenschaftliche Begründung, praktische Umsetzungstipps
+
+Die KI-Interaktion erfolgt ausschließlich über diese drei Generierungs-Funktionen. Es gibt keine fortlaufende Chat- oder Konversationsfunktion mit einem Assistenten.
 
 ### 7.2.4 Screenshots im Anhang
 
