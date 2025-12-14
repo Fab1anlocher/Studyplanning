@@ -61,6 +61,11 @@ interface WeekDetailViewProps {
 const getSessionIcon = (moduleName: string, topic: string, description: string) => {
   const combined = `${moduleName} ${topic} ${description}`.toLowerCase();
   
+  // Check for web/network related content first (before general development)
+  if (combined.match(/web|internet|network|netzwerk|online|api|rest/i)) {
+    return Globe;
+  }
+  
   // Check for programming/coding related content
   if (combined.match(/coding|programmier|software|code|javascript|python|java|c\+\+|development|entwicklung|algorithm/i)) {
     return Code;
@@ -89,11 +94,6 @@ const getSessionIcon = (moduleName: string, topic: string, description: string) 
   // Check for business related content
   if (combined.match(/business|geschäft|management|strategie|marketing|unternehmen/i)) {
     return Briefcase;
-  }
-  
-  // Check for web/network related content
-  if (combined.match(/web|internet|network|netzwerk|online|api|rest/i)) {
-    return Globe;
   }
   
   // Check for practical/hands-on content
