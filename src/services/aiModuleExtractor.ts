@@ -7,6 +7,7 @@
  */
 
 import OpenAI from 'openai';
+import { MODULE_EXTRACTION_SYSTEM_PROMPT } from '../prompts/moduleExtractionPrompt';
 
 // REVIEW: Constants for validation
 const ECTS_MIN = 1;
@@ -112,72 +113,8 @@ export async function extractModuleDataWithAI(
     dangerouslyAllowBrowser: true
   });
 
-  // REVIEW: Prompt Hardening - Added explicit constraints and validation rules to reduce hallucinations
-  const systemPrompt = `Du bist ein KI-Assistent, der Modulbeschreibungen von Hochschulen analysiert.
-Extrahiere NUR folgende Informationen und gib sie als kompaktes JSON zurück:
-
-1. title: Modulname/Modultitel
-   - MUSS: Exakt wie im Dokument angegeben (keine Übersetzungen, keine Umformulierungen)
-   - FALLBACK: Wenn nicht gefunden, nutze den Dateinamen ohne .pdf Extension
-
-2. ects: ECTS-Punkte (Zahl)
-   - MUSS: Ganzzahl zwischen 1 und 30
-   - FALLBACK: Falls nicht angegeben, verwende 6 (Standard-Modulumfang)
-   - VALIDIERUNG: Prüfe Begriffe "ECTS", "Credits", "CP", "Kreditpunkte"
-
-3. workload: Workload in Stunden (Zahl)
-   - MUSS: Ganzzahl zwischen 30 und 900
-   - BERECHNUNG: Falls nicht explizit angegeben, nutze ECTS × 30 (Standard: 1 ECTS = 30h)
-   - VALIDIERUNG: Suche nach "Workload", "Arbeitsaufwand", "Arbeitsstunden", "Zeitaufwand"
-
-4. assessments: Array von Kompetenznachweisen mit:
-   - type: z.B. "Schriftliche Prüfung", "Semesterarbeit", "Projekt", "Präsentation"
-     * MUSS: Verwende exakte Bezeichnung aus dem Dokument
-     * KEINE erfundenen Prüfungsformen
-   - weight: Gewichtung in % (Ganzzahl, 0-100)
-     * KRITISCH: Alle weights MÜSSEN sich EXAKT zu 100% addieren
-     * Falls nur 1 Assessment: weight = 100
-     * Falls keine Gewichtung angegeben: Verteile gleichmäßig (z.B. 2 Assessments → je 50%)
-   - format: EXAKT "Einzelarbeit" ODER "Gruppenarbeit" (keine anderen Werte!)
-     * FALLBACK: Wenn unklar, verwende "Einzelarbeit" (Standardannahme)
-   - deadline: Prüfungsdatum falls EXPLIZIT angegeben (Format: YYYY-MM-DD)
-     * NUR wenn konkretes Datum im Dokument steht
-     * KEINE geschätzten oder erfundenen Daten
-     * Leer lassen wenn nicht vorhanden
-
-5. content: Array der 4-6 WICHTIGSTEN Modulinhalte/Themen (nur die für Lernplanung relevantesten)
-   - MINIMUM: 4 Themen, MAXIMUM: 6 Themen (strikt einhalten!)
-   - Fokus auf prüfungsrelevante Inhalte
-   - Kurz und prägnant (z.B. "Prozessmodellierung", "Prozessoptimierung")
-   - KEINE Wiederholungen, KEINE Füllwörter
-   - Suche in Abschnitten: "Inhalt", "Modulinhalte", "Themen", "Lerneinheiten"
-
-6. competencies: Array der 3-5 WICHTIGSTEN Lernziele/Kompetenzen (nur die für Lernplanung relevantesten)
-   - MINIMUM: 3 Kompetenzen, MAXIMUM: 5 Kompetenzen (strikt einhalten!)
-   - Fokus auf messbare, prüfungsrelevante Fähigkeiten
-   - Kurz und prägnant formuliert
-   - KEINE Wiederholungen, KEINE vagen Aussagen
-   - Suche in Abschnitten: "Kompetenzen", "Lernziele", "Die Studierenden können", "Qualifikationsziele"
-
-KRITISCHE VALIDIERUNGSREGELN:
-✓ title: NIEMALS leer, NIEMALS "Modul" oder Platzhalter
-✓ ects: MUSS zwischen 1-30 liegen (typisch: 3-12)
-✓ workload: MUSS zwischen 30-900 liegen (typisch: 90-360)
-✓ assessments: MINDESTENS 1 Assessment, weight-Summe EXAKT 100%
-✓ content: EXAKT 4-6 Einträge (nicht mehr, nicht weniger)
-✓ competencies: EXAKT 3-5 Einträge (nicht mehr, nicht weniger)
-✓ Gib NUR valides JSON zurück, KEINE Erklärungen, KEIN Markdown, KEINE Kommentare
-
-ANTI-HALLUCINATION RULES:
-- Erfinde KEINE Daten die nicht im Text stehen
-- Bei Unsicherheit: Nutze FALLBACK-Werte (siehe oben)
-- KEINE Annahmen über Prüfungstermine
-- KEINE künstlich aufgeblähten Listen
-- Wenn ein Feld fehlt: Nutze vernünftigen Default statt zu raten`;
-
   try {
     // Text auf 12.000 Zeichen begrenzen für schnellere Verarbeitung
-    // Wichtige Infos (ECTS, Kompetenznachweis, etc.) stehen meist am Anfang
     const truncatedText = pdfText.length > 12000 
       ? pdfText.substring(0, 12000) + '...'
       : pdfText;
@@ -185,7 +122,7 @@ ANTI-HALLUCINATION RULES:
     const response = await openai.chat.completions.create({
       model: 'gpt-4o', // Günstiges aber leistungsfähiges Modell
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: MODULE_EXTRACTION_SYSTEM_PROMPT },
         { role: 'user', content: `Modulbeschreibung:\n\n${truncatedText}` }
       ],
       temperature: 0.1, // Niedrige Temperature für konsistentere Ergebnisse

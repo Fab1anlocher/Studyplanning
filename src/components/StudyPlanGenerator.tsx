@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Target, Lightbulb, Brain } from 'lucide-react';
+import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Lightbulb } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import OpenAI from 'openai';
-import { ModuleLearningGuide } from './ModuleLearningGuide';
 import { STUDY_PLAN_SYSTEM_PROMPT, STUDY_PLAN_USER_PROMPT } from '../prompts/studyPlanGenerator';
 
 // REVIEW: Constants for pedagogical and validation rules
@@ -213,7 +212,6 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [currentMonthOffset, setCurrentMonthOffset] = useState(0); // For month navigation
   const [showMethodInfo, setShowMethodInfo] = useState<string | null>(null); // For learning method tooltips
-  const [selectedModuleForGuide, setSelectedModuleForGuide] = useState<any | null>(null); // For module learning guide
 
   const generatePlan = useCallback(async () => {
     setIsGenerating(true);
@@ -296,22 +294,38 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
       });
       
       // Prepare comprehensive data for AI
+      // CRITICAL: Calculate lastDeadline for each module so AI knows when to stop scheduling
       const planningData = {
         startDate: startDate.toISOString().split('T')[0],
         endDate: lastExamDate.toISOString().split('T')[0],
-        modules: actualModules.map(module => ({
-          name: module.name,
-          ects: module.ects,
-          workload: module.workload,
-          content: module.content || [],
-          competencies: module.competencies || [],
-          assessments: (module.assessments || []).map((a: any) => ({
-            type: a.type,
-            weight: a.weight,
-            format: a.format,
-            deadline: a.deadline
-          }))
-        })),
+        modules: actualModules.map(module => {
+          // Find the last assessment deadline for this module
+          let lastDeadline: string | null = null;
+          if (module.assessments && Array.isArray(module.assessments)) {
+            module.assessments.forEach((a: any) => {
+              if (a.deadline) {
+                if (!lastDeadline || a.deadline > lastDeadline) {
+                  lastDeadline = a.deadline;
+                }
+              }
+            });
+          }
+          return {
+            name: module.name,
+            ects: module.ects,
+            workload: module.workload,
+            content: module.content || [],
+            competencies: module.competencies || [],
+            // IMPORTANT: lastDeadline tells AI when to STOP scheduling this module
+            lastDeadline: lastDeadline,
+            assessments: (module.assessments || []).map((a: any) => ({
+              type: a.type,
+              weight: a.weight,
+              format: a.format,
+              deadline: a.deadline
+            }))
+          };
+        }),
         availableTimeSlots: actualTimeSlots.map(slot => ({
           day: slot.day,
           startTime: slot.startTime,
@@ -558,6 +572,12 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       console.log('Generiere KI-Lernplan mit DeepSeek:', planningData);
       console.log(`Erwartete Sessions: ~${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length}`);
       
+      // Debug: Show module deadlines
+      console.log('Modul-Deadlines:');
+      planningData.modules.forEach(m => {
+        console.log(`  - ${m.name}: ${m.lastDeadline || 'keine Deadline'}`);
+      });
+      
       const response = await openai.chat.completions.create({
         model: 'deepseek-chat',
         messages: [
@@ -589,6 +609,22 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       const maxDate = new Date(lastExamDate);
       const moduleNames = new Set(actualModules.map(m => m.name));
       
+      // Create map of module -> lastDeadline for efficient lookup
+      const moduleDeadlines = new Map<string, string | null>();
+      actualModules.forEach(module => {
+        let lastDeadline: string | null = null;
+        if (module.assessments && Array.isArray(module.assessments)) {
+          module.assessments.forEach((a: any) => {
+            if (a.deadline) {
+              if (!lastDeadline || a.deadline > lastDeadline) {
+                lastDeadline = a.deadline;
+              }
+            }
+          });
+        }
+        moduleDeadlines.set(module.name, lastDeadline);
+      });
+      
       sessions.forEach((session, index) => {
         // Validate date range
         const sessionDate = new Date(session.date);
@@ -601,6 +637,16 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         if (!moduleNames.has(session.module)) {
           console.warn(`[StudyPlanGenerator] Session ${index + 1} hat unbekanntes Modul: ${session.module}. Wird übersprungen.`);
           return;
+        }
+        
+        // CRITICAL: Validate session is not after module's last deadline
+        const moduleLastDeadline = moduleDeadlines.get(session.module);
+        if (moduleLastDeadline) {
+          const sessionDateStr = session.date; // Already in YYYY-MM-DD format
+          if (sessionDateStr > moduleLastDeadline) {
+            console.warn(`[StudyPlanGenerator] Session ${index + 1} für Modul "${session.module}" am ${session.date} liegt NACH der letzten Prüfung (${moduleLastDeadline}). Wird übersprungen.`);
+            return;
+          }
         }
         
         // Validate learning method (type-safe check)
@@ -627,7 +673,11 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         });
       });
       
-      console.log(`[StudyPlanGenerator] Validierung: ${validatedSessions.length}/${sessions.length} Sessions gültig`);
+      const filteredCount = sessions.length - validatedSessions.length;
+      console.log(`[StudyPlanGenerator] Validierung: ${validatedSessions.length}/${sessions.length} Sessions gültig (${filteredCount} gefiltert)`);
+      if (filteredCount > 0) {
+        console.log(`[StudyPlanGenerator] INFO: ${filteredCount} Sessions wurden entfernt, weil sie nach der letzten Prüfung des Moduls lagen.`);
+      }
       
       // REVIEW: Warn if too few sessions generated
       const expectedMinSessions = Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length);
@@ -955,20 +1005,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
   }
 
   // Generated Plan View
-  // Show Module Learning Guide if selected
-  if (selectedModuleForGuide) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <ModuleLearningGuide
-          module={selectedModuleForGuide}
-          studySessions={studySessions}
-          onBack={() => setSelectedModuleForGuide(null)}
-          apiKey={propApiKey}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="space-y-6">
@@ -1003,58 +1039,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                   {studySessions.length} Lernsessions wurden für dich geplant • {actualModules.length} Module • {actualTimeSlots.length * 2}h pro Woche
                 </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Module Learning Guides */}
-        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="size-6 text-purple-600" />
-              Detaillierte Modul-Lernguides
-            </CardTitle>
-            <CardDescription>
-              Erhalte einen kompletten A-Z Lernplan pro Modul mit konkreten Übungen, Strategien und Prüfungsvorbereitung
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {actualModules.map((module, index) => {
-                const moduleSessions = studySessions.filter(s => s.module === module.name);
-                const examDate = module.assessments && module.assessments.length > 0 
-                  ? module.assessments[0].deadline 
-                  : null;
-                
-                return (
-                  <div 
-                    key={module.id || index}
-                    className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-400 transition-all hover:shadow-md"
-                  >
-                    <div className="mb-3">
-                      <h3 className="font-semibold text-lg mb-1">{module.name}</h3>
-                      <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
-                        <Badge variant="outline">{module.ects} ECTS</Badge>
-                        <span>•</span>
-                        <span>{moduleSessions.length} Sessions</span>
-                      </div>
-                      {examDate && (
-                        <div className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                          <Target className="size-3" />
-                          Prüfung: {new Date(examDate).toLocaleDateString('de-DE')}
-                        </div>
-                      )}
-                    </div>
-                    <Button 
-                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-                      onClick={() => setSelectedModuleForGuide(module)}
-                    >
-                      <Sparkles className="size-4 mr-2" />
-                      Lernguide öffnen
-                    </Button>
-                  </div>
-                );
-              })}
             </div>
           </CardContent>
         </Card>
@@ -1137,21 +1121,21 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                                     return (
                                       <div
                                         key={`exam-${module.id || module.name}-${assessmentIdx}`}
-                                        className="bg-red-600 text-white p-2 rounded text-xs font-bold border-2 border-red-800"
+                                        className="bg-gradient-to-br from-red-500 to-red-700 text-white p-3 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
                                         title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format})`}
                                       >
-                                        <div className="flex items-center gap-1 mb-1">
-                                          <Target className="size-3" />
-                                          <span>PRÜFUNG</span>
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <Calendar className="size-4 flex-shrink-0" />
+                                          <span className="font-bold text-sm tracking-wide">PRÜFUNG</span>
                                         </div>
-                                        <div className="font-bold">
+                                        <div className="font-bold text-base mb-1">
                                           {module.name}
                                         </div>
-                                        <div className="text-xs opacity-90 mt-1">
+                                        <div className="text-sm font-medium mt-1">
                                           {assessment.type}
                                         </div>
                                         {assessment.format && (
-                                          <div className="text-xs opacity-75 mt-1 italic">
+                                          <div className="text-xs mt-1.5 bg-red-900/30 px-2 py-0.5 rounded inline-block">
                                             {assessment.format}
                                           </div>
                                         )}
@@ -1262,7 +1246,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                         {session.contentTopics && session.contentTopics.length > 0 && (
                           <div className="bg-blue-50 p-3 rounded-lg mt-3">
                             <div className="flex items-center gap-2 mb-2">
-                              <Target className="size-4 text-blue-600" />
+                              <BookOpen className="size-4 text-blue-600" />
                               <h5 className="text-sm font-medium text-gray-900">Zu bearbeitende Themen</h5>
                             </div>
                             <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">

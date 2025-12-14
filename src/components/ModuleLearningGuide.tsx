@@ -29,36 +29,29 @@ interface ModuleLearningGuideProps {
 }
 
 interface GuideContent {
-  overview: string;
-  competencies: string[];
-  learningStrategy: {
-    method: string;
-    explanation?: string;
-    application?: string;
-    reasoning: string;
-    timeline: string;
+  moduleFocus: {
+    coreIdea: string;
+    highImpactAreas: string[];
+    lowerPriorityAreas: string[];
   };
-  weeklyPlan: {
-    week: number;
-    focus: string;
-    tasks: string[];
-  }[];
-  exercises: string[];
-  resources: {
-    tools: string[];
+  howThisModuleIsUsuallyTested: {
+    examLogic: string;
+    whatExaminersCareAbout: string;
+    whatMattersLess: string;
   };
-  examPrep: {
-    assessmentType: string;
-    deadline?: string;
-    format?: string;
-    fourWeeks: string[];
-    twoWeeks: string[];
-    oneWeek: string[];
-    lastDay: string[];
-  }[];
-  tips: string[];
-  commonMistakes: string[];
-  successChecklist: string[];
+  learningStrategyForThisModule: {
+    whereToStart: string;
+    howToUseStudyTime: string[];
+    ifYouFallBehind: string[];
+  };
+  connectionToStudyPlan: {
+    howToUseSessions: string;
+    signalsToAdjustPlan: string[];
+  };
+  readinessCheck: {
+    mustBeAbleToDo: string[];
+    selfAssessment: string[];
+  };
 }
 
 export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: ModuleLearningGuideProps) {
@@ -124,8 +117,58 @@ export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: M
 
       const content = response.choices[0]?.message?.content;
       if (content) {
-        const parsed = JSON.parse(content);
-        setGuideContent(parsed);
+        try {
+          const parsed = JSON.parse(content);
+          
+          // Debug: Log what we received from the AI
+          console.log('AI Response parsed:', JSON.stringify(parsed, null, 2));
+          
+          // Try to normalize field names (AI sometimes uses slightly different names)
+          const normalized: any = {
+            moduleFocus: parsed.moduleFocus || parsed.module_focus || parsed.ModuleFocus || {},
+            howThisModuleIsUsuallyTested: parsed.howThisModuleIsUsuallyTested || parsed.how_this_module_is_usually_tested || parsed.examInfo || {},
+            learningStrategyForThisModule: parsed.learningStrategyForThisModule || parsed.learning_strategy_for_this_module || parsed.learningStrategy || {},
+            connectionToStudyPlan: parsed.connectionToStudyPlan || parsed.connection_to_study_plan || {},
+            readinessCheck: parsed.readinessCheck || parsed.readiness_check || {}
+          };
+          
+          // Validate that required fields exist to prevent white screen
+          if (!normalized.moduleFocus.coreIdea && !normalized.moduleFocus.highImpactAreas) {
+            console.error('Guide JSON fehlt moduleFocus Felder:', parsed);
+            setError('Der generierte Guide hat ein ungültiges Format. Bitte erneut versuchen. (Fehlende moduleFocus Daten)');
+            return;
+          }
+          
+          // Set defaults for moduleFocus
+          normalized.moduleFocus.coreIdea = normalized.moduleFocus.coreIdea || 'Keine Kernidee generiert';
+          normalized.moduleFocus.highImpactAreas = Array.isArray(normalized.moduleFocus.highImpactAreas) ? normalized.moduleFocus.highImpactAreas : [];
+          normalized.moduleFocus.lowerPriorityAreas = Array.isArray(normalized.moduleFocus.lowerPriorityAreas) ? normalized.moduleFocus.lowerPriorityAreas : [];
+          
+          // Set defaults for howThisModuleIsUsuallyTested
+          normalized.howThisModuleIsUsuallyTested.examLogic = normalized.howThisModuleIsUsuallyTested.examLogic || 'Keine Prüfungslogik generiert';
+          normalized.howThisModuleIsUsuallyTested.whatExaminersCareAbout = normalized.howThisModuleIsUsuallyTested.whatExaminersCareAbout || '';
+          normalized.howThisModuleIsUsuallyTested.whatMattersLess = normalized.howThisModuleIsUsuallyTested.whatMattersLess || '';
+          
+          // Set defaults for learningStrategyForThisModule
+          normalized.learningStrategyForThisModule.whereToStart = normalized.learningStrategyForThisModule.whereToStart || 'Starte mit den Grundlagen';
+          normalized.learningStrategyForThisModule.howToUseStudyTime = Array.isArray(normalized.learningStrategyForThisModule.howToUseStudyTime) ? normalized.learningStrategyForThisModule.howToUseStudyTime : [];
+          normalized.learningStrategyForThisModule.ifYouFallBehind = Array.isArray(normalized.learningStrategyForThisModule.ifYouFallBehind) ? normalized.learningStrategyForThisModule.ifYouFallBehind : [];
+          
+          // Set defaults for connectionToStudyPlan
+          normalized.connectionToStudyPlan.howToUseSessions = normalized.connectionToStudyPlan.howToUseSessions || '';
+          normalized.connectionToStudyPlan.signalsToAdjustPlan = Array.isArray(normalized.connectionToStudyPlan.signalsToAdjustPlan) ? normalized.connectionToStudyPlan.signalsToAdjustPlan : [];
+          
+          // Set defaults for readinessCheck
+          normalized.readinessCheck.mustBeAbleToDo = Array.isArray(normalized.readinessCheck.mustBeAbleToDo) ? normalized.readinessCheck.mustBeAbleToDo : [];
+          normalized.readinessCheck.selfAssessment = Array.isArray(normalized.readinessCheck.selfAssessment) ? normalized.readinessCheck.selfAssessment : [];
+          
+          setGuideContent(normalized);
+        } catch (parseError) {
+          console.error('JSON Parse Fehler:', parseError, 'Content:', content);
+          setError('Die KI-Antwort konnte nicht verarbeitet werden. Bitte erneut versuchen.');
+        }
+      } else {
+        setError('Keine Antwort von der KI erhalten.');
       }
     } catch (error) {
       console.error('Fehler beim Generieren des Guides:', error);
@@ -221,279 +264,160 @@ export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: M
         </Card>
       ) : (
         <>
-          {/* Overview */}
-          <Card>
+          {/* Module Focus - Core Idea */}
+          <Card className="border-2 border-blue-200 bg-blue-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="size-5" />
-                Überblick
+                <Target className="size-5 text-blue-600" />
+                Modul-Fokus
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-gray-700">{guideContent.overview}</p>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">🎯 Kernidee</h4>
+                <p className="text-gray-700">{guideContent.moduleFocus.coreIdea}</p>
+              </div>
+              <Separator />
+              <div>
+                <h4 className="font-semibold mb-2 text-green-700">✅ High-Impact Bereiche</h4>
+                <ul className="space-y-1 ml-4">
+                  {guideContent.moduleFocus.highImpactAreas.map((area, idx) => (
+                    <li key={idx} className="text-sm list-disc text-gray-700">{area}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2 text-gray-500">⬇️ Weniger Priorität</h4>
+                <ul className="space-y-1 ml-4">
+                  {guideContent.moduleFocus.lowerPriorityAreas.map((area, idx) => (
+                    <li key={idx} className="text-sm list-disc text-gray-500">{area}</li>
+                  ))}
+                </ul>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Competencies */}
-          <Card>
+          {/* How This Module Is Usually Tested */}
+          <Card className="border-2 border-purple-200 bg-purple-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Target className="size-5" />
-                Kompetenzen die du entwickelst
+                <Brain className="size-5 text-purple-600" />
+                Wie wird dieses Modul geprüft?
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {guideContent.competencies.map((comp, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <CheckCircle2 className="size-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span>{comp}</span>
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">📝 Prüfungslogik</h4>
+                <p className="text-gray-700">{guideContent.howThisModuleIsUsuallyTested.examLogic}</p>
+              </div>
+              <Separator />
+              <div>
+                <h4 className="font-semibold mb-2 text-green-700">✅ Worauf Prüfer achten</h4>
+                <p className="text-gray-700">{guideContent.howThisModuleIsUsuallyTested.whatExaminersCareAbout}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2 text-gray-500">⬇️ Was weniger zählt</h4>
+                <p className="text-gray-500">{guideContent.howThisModuleIsUsuallyTested.whatMattersLess}</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Learning Strategy */}
-          <Card className="border-2 border-purple-200 bg-purple-50/50">
+          <Card className="border-2 border-green-200 bg-green-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Brain className="size-5 text-purple-600" />
+                <Lightbulb className="size-5 text-green-600" />
                 Deine Lernstrategie
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Badge className="bg-purple-600 mb-2">
-                  {guideContent.learningStrategy.method}
-                </Badge>
-                {guideContent.learningStrategy.explanation && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="font-semibold mb-2 text-blue-900">Was ist das?</h4>
-                    <p className="text-gray-700">{guideContent.learningStrategy.explanation}</p>
-                  </div>
-                )}
-                {guideContent.learningStrategy.application && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <h4 className="font-semibold mb-2 text-green-900">Wie wendest du es in diesem Modul an?</h4>
-                    <p className="text-gray-700">{guideContent.learningStrategy.application}</p>
-                  </div>
-                )}
-                <div className="mt-3">
-                  <h4 className="font-semibold mb-2">Warum diese Methode?</h4>
-                  <p className="text-gray-700">{guideContent.learningStrategy.reasoning}</p>
-                </div>
+                <h4 className="font-semibold mb-2">🚀 Womit starten?</h4>
+                <p className="text-gray-700">{guideContent.learningStrategyForThisModule.whereToStart}</p>
               </div>
               <Separator />
               <div>
-                <h4 className="font-semibold mb-2 flex items-center gap-2">
-                  <Clock className="size-4" />
-                  Zeitplanung
-                </h4>
-                <p className="text-gray-700">{guideContent.learningStrategy.timeline}</p>
+                <h4 className="font-semibold mb-2">⏰ So nutzt du deine Lernzeit</h4>
+                <ul className="space-y-2">
+                  {guideContent.learningStrategyForThisModule.howToUseStudyTime.map((tip, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <CheckCircle2 className="size-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-gray-700">{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Separator />
+              <div>
+                <h4 className="font-semibold mb-2 text-orange-600">⚡ Wenn du in Zeitnot gerätst</h4>
+                <ul className="space-y-1 ml-4">
+                  {guideContent.learningStrategyForThisModule.ifYouFallBehind.map((tip, idx) => (
+                    <li key={idx} className="text-sm list-disc text-gray-700">{tip}</li>
+                  ))}
+                </ul>
               </div>
             </CardContent>
           </Card>
 
-          {/* Weekly Plan */}
+          {/* Connection to Study Plan */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="size-5" />
-                Wochenplan
+                Verbindung zum Lernplan
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {guideContent.weeklyPlan.map((week, idx) => (
-                  <div key={idx} className="border-l-4 border-blue-500 pl-4 py-2">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline">Woche {week.week}</Badge>
-                      <span className="font-semibold">{week.focus}</span>
-                    </div>
-                    <ul className="space-y-1 ml-4">
-                      {week.tasks.map((task, taskIdx) => (
-                        <li key={taskIdx} className="text-sm text-gray-600 list-disc">
-                          {task}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">📅 So nutzt du deine Sessions</h4>
+                <p className="text-gray-700">{guideContent.connectionToStudyPlan.howToUseSessions}</p>
+              </div>
+              <Separator />
+              <div>
+                <h4 className="font-semibold mb-2 text-orange-600">⚠️ Warnsignale für Plananpassung</h4>
+                <ul className="space-y-1 ml-4">
+                  {guideContent.connectionToStudyPlan.signalsToAdjustPlan.map((signal, idx) => (
+                    <li key={idx} className="text-sm list-disc text-gray-700">{signal}</li>
+                  ))}
+                </ul>
               </div>
             </CardContent>
           </Card>
 
-          {/* Exercises */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="size-5" />
-                Konkrete Übungen ({guideContent.exercises.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-2">
-                {guideContent.exercises.map((exercise, idx) => (
-                  <div key={idx} className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <span className="font-semibold text-yellow-700 min-w-6">#{idx + 1}</span>
-                    <span className="text-gray-700">{exercise}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Resources */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="size-5" />
-                Empfohlene Tools
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {guideContent.resources.tools.length > 0 ? (
-                <div>
-                  <h4 className="font-semibold mb-2 text-blue-600">🛠️ Tools</h4>
-                  <ul className="space-y-1 ml-4">
-                    {guideContent.resources.tools.map((tool, idx) => (
-                      <li key={idx} className="text-sm list-disc">{tool}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="text-gray-500">Keine spezifischen Tools empfohlen.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Exam Prep Timeline - Separate for each assessment */}
-          {guideContent.examPrep.map((prep, prepIdx) => (
-            <Card key={prepIdx} className="border-2 border-red-200 bg-red-50/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Flame className="size-5 text-red-600" />
-                  Vorbereitung: {prep.assessmentType}
-                </CardTitle>
-                <CardDescription>
-                  {prep.format && <Badge variant="outline" className="mr-2">{prep.format}</Badge>}
-                  {prep.deadline && (() => {
-                    try {
-                      const date = new Date(prep.deadline);
-                      if (isNaN(date.getTime())) return null;
-                      return (
-                        <span className="text-sm text-gray-600">
-                          Deadline: {date.toLocaleDateString('de-DE', { 
-                            weekday: 'long', 
-                            day: '2-digit', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
-                        </span>
-                      );
-                    } catch {
-                      return null;
-                    }
-                  })()}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2 text-red-700">🔴 4 Wochen vorher</h4>
-                  <ul className="space-y-1 ml-4">
-                    {prep.fourWeeks.map((item, idx) => (
-                      <li key={idx} className="text-sm list-disc">{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 text-orange-700">🟡 2 Wochen vorher</h4>
-                  <ul className="space-y-1 ml-4">
-                    {prep.twoWeeks.map((item, idx) => (
-                      <li key={idx} className="text-sm list-disc">{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 text-yellow-700">🟢 1 Woche vorher</h4>
-                  <ul className="space-y-1 ml-4">
-                    {prep.oneWeek.map((item, idx) => (
-                      <li key={idx} className="text-sm list-disc">{item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 text-blue-700">🔵 Letzter Tag</h4>
-                  <ul className="space-y-1 ml-4">
-                    {prep.lastDay.map((item, idx) => (
-                      <li key={idx} className="text-sm list-disc">{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* Tips & Common Mistakes */}
-          <div className="grid md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="size-5 text-yellow-500" />
-                  Lerntipps
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {guideContent.tips.map((tip, idx) => (
-                    <li key={idx} className="text-sm flex items-start gap-2">
-                      <span className="text-yellow-500">💡</span>
-                      <span>{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-red-600">
-                  ⚠️ Häufige Fehler
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {guideContent.commonMistakes.map((mistake, idx) => (
-                    <li key={idx} className="text-sm flex items-start gap-2">
-                      <span className="text-red-500">❌</span>
-                      <span>{mistake}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Success Checklist */}
+          {/* Readiness Check */}
           <Card className="border-2 border-green-200 bg-green-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="size-5 text-green-600" />
-                Erfolgs-Checkliste
+                Bereitschafts-Check
               </CardTitle>
               <CardDescription>
                 Bist du bereit für die Prüfung? Checke alle Punkte ab!
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {guideContent.successChecklist.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 bg-white rounded border">
-                    <input type="checkbox" className="size-5 rounded border-gray-300" />
-                    <label className="flex-1 cursor-pointer">{item}</label>
-                  </div>
-                ))}
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-2">✅ Das musst du können</h4>
+                <div className="space-y-2">
+                  {guideContent.readinessCheck.mustBeAbleToDo.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-white rounded border">
+                      <input type="checkbox" className="size-5 rounded border-gray-300" />
+                      <label className="flex-1 cursor-pointer">{item}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <Separator />
+              <div>
+                <h4 className="font-semibold mb-2">🤔 Selbsteinschätzung</h4>
+                <ul className="space-y-2">
+                  {guideContent.readinessCheck.selfAssessment.map((question, idx) => (
+                    <li key={idx} className="text-sm flex items-start gap-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                      <span className="text-yellow-600">❓</span>
+                      <span>{question}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </CardContent>
           </Card>
