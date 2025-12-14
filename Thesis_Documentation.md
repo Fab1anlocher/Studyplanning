@@ -6,7 +6,7 @@ Der finale Prototyp der StudyPlanner-Anwendung umfasst eine Reihe von Features, 
 
 ### 7.1.1 Upload von Materialien und Eingabe von Themen
 
-Die Anwendung bietet eine intuitive PDF-Upload-Funktion, die es Nutzern ermöglicht, ihre Modulbeschreibungen direkt hochzuladen. Mithilfe der PDF.js-Bibliothek wird der Text aus den Dokumenten extrahiert und durch die OpenAI GPT-4o-mini API automatisch analysiert. Das System identifiziert dabei folgende Informationen:
+Die Anwendung bietet eine intuitive PDF-Upload-Funktion, die es Nutzern ermöglicht, ihre Modulbeschreibungen direkt hochzuladen. Mithilfe der PDF.js-Bibliothek wird der Text aus den Dokumenten extrahiert und durch die OpenAI GPT-4o API automatisch analysiert. Das System identifiziert dabei folgende Informationen:
 
 - **Modulname**: Eindeutige Bezeichnung der Lehrveranstaltung
 - **ECTS-Punkte**: Kreditpunkte als Indikator für den erwarteten Arbeitsaufwand
@@ -57,8 +57,7 @@ Die Anwendung bietet mehrere Features zur Visualisierung und Organisation des Le
 - **Kalenderansicht**: Übersichtliche Darstellung aller Lernsessions in einem monatlichen Kalender-Grid
 - **Farbcodierung**: Unterschiedliche Farben für verschiedene Module zur besseren Orientierung
 - **Session-Details**: Expandierbare Karten mit vollständigen Informationen zu jeder Lernsession (Zeitfenster, Modulzuordnung, Lernthema, Beschreibung, empfohlene Lernmethode)
-- **Monatsnavigation**: Wechsel zwischen verschiedenen Monaten des Semesters
-- **Modulfilterung**: Fokussierte Ansicht einzelner Module
+- **Monatsnavigation**: Wechsel zwischen verschiedenen Monaten des Semesters mittels Vor/Zurück-Buttons
 
 **Export-Funktion:**
 Der generierte Lernplan kann als CSV-Datei exportiert werden mit allen Details:
@@ -121,7 +120,7 @@ Jedes Modul wird in einer übersichtlichen Card dargestellt, die folgende Inform
 
 **Schritt 4: Wochenplan-Definition**
 Der vierte Schritt ermöglicht die Definition verfügbarer Lernzeiten durch:
-- Interaktives Grid mit 7 Tagen × 9 Zeitslots (06:00-24:00 Uhr in 2-Stunden-Blöcken)
+- Interaktives Grid mit 7 Tagen × 9 Zeitslots (06:00-23:59 Uhr in 2-Stunden-Blöcken)
 - Click-to-Toggle Mechanismus für einzelne Zeitblöcke
 - Schnellauswahl-Buttons für gängige Zeitfenster (Vormittags, Nachmittags, Abends, Ganztags)
 - Visuelle Bestätigung durch Farbänderung (Blau-Lila Gradient für ausgewählte Slots)
@@ -158,17 +157,17 @@ Beim Klick auf eine Session öffnet sich ein Collapsible-Element mit vollständi
 
 ### 7.2.3 KI-gestützte Features
 
-Die Anwendung nutzt die OpenAI GPT-4o-mini API an zwei zentralen Stellen:
+Die Anwendung nutzt die OpenAI API an drei zentralen Stellen mit unterschiedlichen Modellen:
 
-**1. Automatische Modulextraktion (ModuleUpload):**
+**1. Automatische Modulextraktion (ModuleUpload) - GPT-4o:**
 Beim Upload einer Modulbeschreibung als PDF wird:
 - Der Text mittels PDF.js aus dem Dokument extrahiert
-- Die OpenAI API zur Analyse und strukturierten Extraktion verwendet
+- Die OpenAI GPT-4o API zur Analyse und strukturierten Extraktion verwendet
 - Ein JSON-Objekt mit Modulname, ECTS, Workload, Leistungsnachweisen und Inhalten generiert
 - Das Ergebnis in der UI angezeigt und kann manuell nachbearbeitet werden
 
-**2. Lernplan-Generierung (StudyPlanGenerator):**
-Bei der Plangenerierung analysiert die KI:
+**2. Lernplan-Generierung (StudyPlanGenerator) - DeepSeek-Chat:**
+Bei der Plangenerierung analysiert das DeepSeek-Chat Modell:
 - Alle Module mit ihren ECTS-Punkten, Workloads und Prüfungsterminen
 - Die verfügbaren Zeitslots der Woche
 - Den Zeitraum bis zur letzten Prüfung
@@ -179,8 +178,10 @@ Und erstellt daraus:
 - Auswahl geeigneter Lernmethoden pro Session
 - Berücksichtigung pädagogischer Prinzipien (Spaced Repetition, Assessment-Gewichtung)
 
-**3. Module Learning Guide (ModuleLearningGuide):**
-Für einzelne Module kann ein vertiefender Lernguide generiert werden mit:
+Die Wahl von DeepSeek-Chat erfolgte aufgrund der höheren Token-Limits (16.000 max_tokens) für umfangreiche Semesterpläne und der höheren Kreativität (temperature: 0.8) für personalisierte Empfehlungen.
+
+**3. Module Learning Guide (ModuleLearningGuide) - GPT-4o:**
+Für einzelne Module kann ein vertiefender Lernguide mit GPT-4o generiert werden:
 - Modulspezifischer Lernstrategie und Begründung
 - Wöchentlichem Fokusplan mit konkreten Aufgaben
 - Gestaffelten Prüfungsvorbereitungs-Checklisten
@@ -346,9 +347,14 @@ Für einen inklusiven Produktiveinsatz wären Accessibility-Audits und entsprech
 **Kostenmodell und soziale Gerechtigkeit:**
 
 Die Anforderung eines persönlichen OpenAI API-Keys schafft eine finanzielle Barriere:
-- Geschätzte Kosten von ca. €0.15-0.50 pro Lernplan-Generierung (Stand: Dezember 2024, basierend auf GPT-4o-mini Preismodell, unterliegt Änderungen)
+- Geschätzte Kosten von ca. €0.10-0.40 pro Lernplan-Generierung (Stand: Dezember 2024, abhängig von Anzahl der Module und Semesterlänge, unterliegt Änderungen)
+  - Modulextraktion (GPT-4o): ~€0.01-0.05 pro PDF
+  - Lernplan-Generierung (DeepSeek-Chat): ~€0.05-0.20 pro vollständigen Plan
+  - Module Learning Guide (GPT-4o): ~€0.02-0.10 pro Modul
 - Notwendigkeit einer Kreditkarte für API-Account-Erstellung
 - Potenzieller Ausschluss finanziell benachteiligter Studierender
+
+Die Verwendung unterschiedlicher Modelle (GPT-4o für Extraktion/Guides, DeepSeek-Chat für Plangenerierung) optimiert das Kosten-Nutzen-Verhältnis.
 
 Ein nachhaltiges Produktmodell müsste entweder:
 1. Eine kostenlose Basis-Funktionalität ohne AI anbieten
