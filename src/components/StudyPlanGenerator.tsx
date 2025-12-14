@@ -809,9 +809,11 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         const percentage = ((count / validatedSessions.length) * 100).toFixed(1);
         console.log(`  - ${moduleName}: ${count} Sessions (${percentage}%)`);
         
-        // Warn if module has less than 5% of total sessions (likely too few)
-        if (count < validatedSessions.length * 0.05 && count < 3) {
-          distributionWarnings.push(`⚠️ WARNUNG: Modul "${moduleName}" hat nur ${count} Sessions (${percentage}%) - möglicherweise zu wenig!`);
+        // Warn if module has less than 10% of total sessions OR less than 3 sessions total
+        // (whichever is more restrictive for fairness)
+        const minExpectedPercentage = 100 / actualModules.length * 0.5; // At least 50% of fair share
+        if (count < validatedSessions.length * (minExpectedPercentage / 100) || count < 3) {
+          distributionWarnings.push(`⚠️ WARNUNG: Modul "${moduleName}" hat nur ${count} Sessions (${percentage}%) - möglicherweise zu wenig! Erwartet: mind. ${minExpectedPercentage.toFixed(1)}%`);
         }
         
         // Warn if a module has 0 sessions
