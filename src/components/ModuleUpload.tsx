@@ -761,14 +761,21 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                           </div>
                         </div>
                         
-                        <div className="md:col-span-4">
+                        <div className="md:col-span-6">
                           <div className="space-y-1">
                             <Label htmlFor={`deadline-${assessment.id}`} className="text-xs font-semibold text-gray-700 mb-1 block">
                               Prüfungsdatum * {!assessment.deadline && <span className="text-orange-600">(Erforderlich)</span>}
                             </Label>
-                            <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border-2 transition-all" style={{
-                              borderColor: assessment.deadline ? '#22c55e' : '#fb923c'
-                            }}>
+                            <div 
+                              className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border-2 transition-all cursor-pointer hover:border-blue-400" 
+                              style={{
+                                borderColor: assessment.deadline ? '#22c55e' : '#fb923c'
+                              }}
+                              onClick={() => {
+                                const input = document.getElementById(`deadline-${assessment.id}`) as HTMLInputElement;
+                                if (input) input.showPicker?.();
+                              }}
+                            >
                               <Calendar className="size-5 flex-shrink-0" style={{
                                 color: assessment.deadline ? '#16a34a' : '#ea580c'
                               }} />
@@ -777,23 +784,11 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
                                 type="date"
                                 value={assessment.deadline}
                                 onChange={(e) => updateAssessmentDeadline(module.id, assessment.id, e.target.value)}
-                                className="flex-1 text-sm font-semibold border-0 focus:ring-0 p-0 bg-transparent"
-                                style={{ minWidth: '160px' }}
+                                className="flex-1 text-sm font-semibold border-0 focus:ring-0 p-0 bg-transparent cursor-pointer"
+                                style={{ minWidth: '200px' }}
                               />
                             </div>
                           </div>
-                        </div>
-                        
-                        <div className="md:col-span-2 flex items-center justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteAssessment(module.id, assessment.id)}
-                            disabled={module.assessments.length === 1}
-                            title={module.assessments.length === 1 ? "Mindestens eine Prüfung erforderlich" : "Prüfung löschen"}
-                          >
-                            <Trash2 className="size-4 text-red-600" />
-                          </Button>
                         </div>
                       </div>
                     </div>
