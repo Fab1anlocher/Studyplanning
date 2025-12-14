@@ -120,7 +120,7 @@ Jedes Modul wird in einer übersichtlichen Card dargestellt, die folgende Inform
 
 **Schritt 4: Wochenplan-Definition**
 Der vierte Schritt ermöglicht die Definition verfügbarer Lernzeiten durch:
-- Interaktives Grid mit 7 Tagen × 9 Zeitslots (06:00-23:59 Uhr in 2-Stunden-Blöcken)
+- Interaktives Grid mit 7 Tagen × 9 Zeitslots (06:00-23:59 Uhr, überwiegend 2-Stunden-Blöcke, letzter Block 22:00-23:59)
 - Click-to-Toggle Mechanismus für einzelne Zeitblöcke
 - Schnellauswahl-Buttons für gängige Zeitfenster (Vormittags, Nachmittags, Abends, Ganztags)
 - Visuelle Bestätigung durch Farbänderung (Blau-Lila Gradient für ausgewählte Slots)
@@ -214,9 +214,9 @@ Die Screenshots können durch Ausführen der Anwendung (`npm run dev`) und Navig
 Die entwickelte Prototyp-Anwendung unterliegt mehreren technischen Limitierungen, die sowohl aus architektonischen Entscheidungen als auch aus den verwendeten Technologien resultieren:
 
 **Kontextlänge und Token-Limits:**
-Die Nutzung der OpenAI GPT-4o-mini API unterliegt inhärenten Token-Beschränkungen:
-- **Input-Limit**: Maximal 128.000 Tokens pro Request
-- **Output-Limit**: Maximal 16.384 Tokens pro Response
+Die Nutzung der OpenAI API (GPT-4o) und DeepSeek-Chat unterliegt inhärenten Token-Beschränkungen:
+- **GPT-4o**: Maximal 128.000 Input-Tokens, 16.384 Output-Tokens
+- **DeepSeek-Chat**: Großzügigere Limits für umfangreiche Semesterpläne
 
 Bei der Verarbeitung umfangreicher Modulbeschreibungen oder der Generierung sehr detaillierter Lernpläne können diese Grenzen erreicht werden. Dies kann zu unvollständigen Extraktionen oder abgeschnittenen Lernplänen führen. Die Anwendung implementiert zwar Error-Handling für solche Fälle, eine automatische Chunking-Strategie für überlange Dokumente existiert jedoch noch nicht.
 
