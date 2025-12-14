@@ -14,6 +14,7 @@ import { ExecutionGuide } from '../types/executionGuide';
 import { generateWeekElaboration, getSessionsForWeek, formatDateISO } from '../services/weekElaborationService';
 import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide } from '../services/executionGuideStorage';
 import { ExecutionGuideView } from './ExecutionGuideView';
+import { toast } from 'sonner';
 
 // REVIEW: Constants for pedagogical and validation rules
 const ALLOWED_LEARNING_METHODS = [
@@ -919,8 +920,11 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       setIsElaboratingWeek(false);
       setSelectedWeekStart(null); // Close week selection
       
-      // Show success message (could be improved with a toast notification)
-      alert(`✅ Woche erfolgreich ausgearbeitet!\n\n${response.executionGuides.length} Sessions wurden mit Execution Guides angereichert.`);
+      // Show success notification
+      toast.success('Woche erfolgreich ausgearbeitet!', {
+        description: `${response.executionGuides.length} Sessions wurden mit Execution Guides angereichert.`,
+        duration: 5000,
+      });
       
     } catch (error) {
       console.error('[WeekElaboration] Error:', error);

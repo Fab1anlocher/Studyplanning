@@ -15,6 +15,23 @@ import {
 } from '../prompts/weekElaborationPrompt';
 
 /**
+ * Session interface matching the StudySession type from StudyPlanGenerator
+ */
+export interface Session {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  module: string;
+  topic: string;
+  description: string;
+  learningMethod?: string;
+  contentTopics?: string[];
+  competencies?: string[];
+  studyTips?: string;
+}
+
+/**
  * Validates an execution guide structure
  */
 function validateExecutionGuide(guide: any): guide is ExecutionGuide {
@@ -165,9 +182,9 @@ export async function generateWeekElaboration(
  * Get sessions for a specific week
  */
 export function getSessionsForWeek(
-  allSessions: any[],
+  allSessions: Session[],
   weekStartDate: Date
-): any[] {
+): Session[] {
   const weekStart = new Date(weekStartDate);
   weekStart.setHours(0, 0, 0, 0);
   
