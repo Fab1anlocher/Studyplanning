@@ -16,7 +16,16 @@ import {
   Zap, 
   RefreshCw,
   CheckCircle2,
-  Lightbulb
+  Lightbulb,
+  Code,
+  Laptop,
+  Leaf,
+  Users,
+  Briefcase,
+  Brain,
+  Palette,
+  Database,
+  Globe
 } from 'lucide-react';
 import { ExecutionGuideView } from './ExecutionGuideView';
 import { generateWeekElaboration, formatDateISO } from '../services/weekElaborationService';
@@ -44,6 +53,62 @@ interface WeekDetailViewProps {
   apiKey: string;
   onBack: () => void;
 }
+
+/**
+ * Get appropriate icon based on module name, topic, and description
+ * Returns an icon component to visually represent the learning session
+ */
+const getSessionIcon = (moduleName: string, topic: string, description: string) => {
+  const combined = `${moduleName} ${topic} ${description}`.toLowerCase();
+  
+  // Check for web/network related content first (before general development)
+  if (combined.match(/web|internet|network|netzwerk|online|api|rest/i)) {
+    return Globe;
+  }
+  
+  // Check for programming/coding related content
+  if (combined.match(/coding|programmier|software|code|javascript|python|java|c\+\+|development|entwicklung|algorithm/i)) {
+    return Code;
+  }
+  
+  // Check for UI/Design related content
+  if (combined.match(/ui|ux|design|interface|imagery|style guide|visuel|gestaltung/i)) {
+    return Palette;
+  }
+  
+  // Check for database related content
+  if (combined.match(/database|datenbank|sql|nosql|data/i)) {
+    return Database;
+  }
+  
+  // Check for sustainability/environmental content
+  if (combined.match(/sustainab|nachhaltig|umwelt|green|öko|ecology|klima|environment/i)) {
+    return Leaf;
+  }
+  
+  // Check for group work
+  if (combined.match(/gruppe|group|team|gemeinsam|zusammen|kollaboration|collaboration/i)) {
+    return Users;
+  }
+  
+  // Check for business related content
+  if (combined.match(/business|geschäft|management|strategie|marketing|unternehmen/i)) {
+    return Briefcase;
+  }
+  
+  // Check for practical/hands-on content
+  if (combined.match(/hands-on|praxis|praktisch|übung|exercise|lab|project/i)) {
+    return Laptop;
+  }
+  
+  // Check for theory/learning content
+  if (combined.match(/theorie|theory|learn|lern|studie|research|analyse/i)) {
+    return Brain;
+  }
+  
+  // Default to book icon
+  return BookOpen;
+};
 
 export function WeekDetailView({ 
   weekStartDate, 
@@ -217,6 +282,7 @@ export function WeekDetailView({
                 const hasGuide = hasExecutionGuide(session.id);
                 const guide = hasGuide ? getExecutionGuide(session.id) : null;
                 const isExpanded = expandedSession === session.id;
+                const SessionIcon = getSessionIcon(session.module, session.topic, session.description);
 
                 return (
                   <Card 
@@ -227,15 +293,15 @@ export function WeekDetailView({
                       {/* Session Header */}
                       <div className="flex items-start gap-4 mb-4">
                         <div className={`bg-gradient-to-br ${gradient} p-3 rounded-lg flex-shrink-0`}>
-                          <BookOpen className="size-6 text-white" />
+                          <SessionIcon className="size-6 text-white" />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-start justify-between mb-2">
-                            <div>
+                            <div className="flex-1 pr-4">
                               <h4 className="text-lg font-semibold text-gray-900">{session.topic}</h4>
                               <p className="text-sm text-gray-600 mt-1">{session.description}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                               <Badge>{session.module}</Badge>
                               {hasGuide && (
                                 <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white">

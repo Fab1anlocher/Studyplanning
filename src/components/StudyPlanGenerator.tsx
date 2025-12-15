@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Lightbulb, Zap, X } from 'lucide-react';
+import { Sparkles, Calendar, Download, RefreshCw, Key, Eye, EyeOff, ArrowLeft, Clock, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Lightbulb, Zap, X, Code, Laptop, Leaf, Users, Briefcase, Brain, Palette, Database, Globe } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -147,6 +147,62 @@ const LEARNING_METHODS: Record<string, { title: string; description: string; tip
       'Analysiere Fehler gründlich'
     ]
   }
+};
+
+/**
+ * Get appropriate icon based on module name, topic, and description
+ * Returns an icon component to visually represent the learning session
+ */
+const getSessionIcon = (moduleName: string, topic: string, description: string) => {
+  const combined = `${moduleName} ${topic} ${description}`.toLowerCase();
+  
+  // Check for web/network related content first (before general development)
+  if (combined.match(/web|internet|network|netzwerk|online|api|rest/i)) {
+    return Globe;
+  }
+  
+  // Check for programming/coding related content
+  if (combined.match(/coding|programmier|software|code|javascript|python|java|c\+\+|development|entwicklung|algorithm/i)) {
+    return Code;
+  }
+  
+  // Check for UI/Design related content
+  if (combined.match(/ui|ux|design|interface|imagery|style guide|visuel|gestaltung/i)) {
+    return Palette;
+  }
+  
+  // Check for database related content
+  if (combined.match(/database|datenbank|sql|nosql|data/i)) {
+    return Database;
+  }
+  
+  // Check for sustainability/environmental content
+  if (combined.match(/sustainab|nachhaltig|umwelt|green|öko|ecology|klima|environment/i)) {
+    return Leaf;
+  }
+  
+  // Check for group work
+  if (combined.match(/gruppe|group|team|gemeinsam|zusammen|kollaboration|collaboration/i)) {
+    return Users;
+  }
+  
+  // Check for business related content
+  if (combined.match(/business|geschäft|management|strategie|marketing|unternehmen/i)) {
+    return Briefcase;
+  }
+  
+  // Check for practical/hands-on content
+  if (combined.match(/hands-on|praxis|praktisch|übung|exercise|lab|project/i)) {
+    return Laptop;
+  }
+  
+  // Check for theory/learning content
+  if (combined.match(/theorie|theory|learn|lern|studie|research|analyse/i)) {
+    return Brain;
+  }
+  
+  // Default to book icon
+  return BookOpen;
 };
 
 // Excel export helper
@@ -1303,7 +1359,12 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                           {sessions.map((session, idx) => {
                             const moduleIndex = actualModules.findIndex(m => m.name === session.module);
                             const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500'];
-                            const bgColor = colors[moduleIndex % colors.length];
+                            // Check if session is related to exam or group work
+                            const isExamOrGroupWork = session.description?.toLowerCase().includes('gruppenarbeit') || 
+                                                     session.description?.toLowerCase().includes('prüfung') ||
+                                                     session.topic?.toLowerCase().includes('gruppenarbeit') ||
+                                                     session.topic?.toLowerCase().includes('prüfung');
+                            const bgColor = isExamOrGroupWork ? 'bg-red-600' : colors[moduleIndex % colors.length];
                             
                             return (
                               <div
@@ -1346,6 +1407,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
               const colors = ['from-blue-500 to-blue-600', 'from-purple-500 to-purple-600', 'from-pink-500 to-pink-600'];
               const gradient = colors[moduleIndex % colors.length];
               const isExpanded = expandedSession === session.id;
+              const SessionIcon = getSessionIcon(session.module, session.topic, session.description);
               
               return (
                 <Collapsible
@@ -1356,7 +1418,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                   <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
                     <div className="flex items-start gap-4 p-4">
                       <div className={`bg-gradient-to-br ${gradient} p-3 rounded-lg flex-shrink-0`}>
-                        <BookOpen className="size-5 text-white" />
+                        <SessionIcon className="size-5 text-white" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-start justify-between mb-1">
