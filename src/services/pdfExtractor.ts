@@ -81,11 +81,8 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   }
   
   try {
-    console.log('Starte PDF-Extraktion für:', file.name);
-    
     // Datei in ArrayBuffer konvertieren - erforderlich für PDF.js
     const arrayBuffer = await file.arrayBuffer();
-    console.log('ArrayBuffer erstellt, Größe:', arrayBuffer.byteLength);
     
     // PDF laden - erstellt ein PDF-Dokument-Objekt
     const loadingTask = pdfjsLib.getDocument({
@@ -93,7 +90,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     });
     
     const pdf = await loadingTask.promise;
-    console.log('PDF geladen, Seiten:', pdf.numPages);
     
     // REVIEW: Page count validation (max 200 pages to prevent excessive processing)
     if (pdf.numPages === 0) {
@@ -113,7 +109,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
           const pageText = textContent.items
             .map((item: any) => item.str)
             .join(' ');
-          console.log(`Seite ${pageNum} extrahiert, ${pageText.length} Zeichen`);
           return pageText;
         })
       );
@@ -133,7 +128,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
       console.warn('Extrahierter Text ist sehr kurz (<100 Zeichen). Prüfe ob die PDF korrekt ist.');
     }
     
-    console.log('PDF-Extraktion abgeschlossen, Gesamt:', fullText.length, 'Zeichen');
     return fullText.trim();
   } catch (error) {
     console.error('Detaillierter Fehler bei PDF-Extraktion:', error);

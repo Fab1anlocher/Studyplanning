@@ -73,7 +73,8 @@ interface StudyPlanGeneratorProps {
 
 // Constants for calendar display
 const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-const DEFAULT_MONTH = '2024-12-01'; // TODO: Make this dynamic based on current date/semester
+// Default month for calendar view (will be adjusted based on generated plan)
+const DEFAULT_MONTH = '2024-12-01';
 
 // Learning Method Explanations
 const LEARNING_METHODS: Record<string, { title: string; description: string; tips: string[] }> = {
@@ -640,15 +641,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         .replace('{totalSlotsPerWeek}', actualTimeSlots.length.toString())
         .replace('{minSessions}', minSessions.toString());
       
-      console.log('Generiere KI-Lernplan mit DeepSeek:', planningData);
-      console.log(`Erwartete Sessions: ~${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length}`);
-      
-      // Debug: Show module deadlines
-      console.log('Modul-Deadlines:');
-      planningData.modules.forEach(m => {
-        console.log(`  - ${m.name}: ${m.lastDeadline || 'keine Deadline'}`);
-      });
-      
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
@@ -671,8 +663,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       if (!Array.isArray(sessions) || sessions.length === 0) {
         throw new Error('Keine Sessions von der KI erhalten');
       }
-      
-      console.log('KI-generierte Sessions:', sessions);
       
       // REVIEW: Validate AI-generated sessions for critical defensive checks
       const validatedSessions: StudySession[] = [];
@@ -745,10 +735,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       });
       
       const filteredCount = sessions.length - validatedSessions.length;
-      console.log(`[StudyPlanGenerator] Validierung: ${validatedSessions.length}/${sessions.length} Sessions gültig (${filteredCount} gefiltert)`);
-      if (filteredCount > 0) {
-        console.log(`[StudyPlanGenerator] INFO: ${filteredCount} Sessions wurden entfernt, weil sie nach der letzten Prüfung des Moduls lagen.`);
-      }
       
       // REVIEW: Warn if too few sessions generated
       const expectedMinSessions = Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length);
@@ -844,8 +830,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       if (pedagogicalWarnings.length > 0) {
         console.warn('[StudyPlanGenerator] Pedagogical Validation Warnings:');
         pedagogicalWarnings.forEach(warning => console.warn(warning));
-      } else {
-        console.log('[StudyPlanGenerator] ✅ Pedagogical validation passed - no major concerns');
       }
       
       // CRITICAL: Validate module distribution - ensure ALL modules get sessions
@@ -859,11 +843,9 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         moduleDistribution.set(session.module, current + 1);
       });
       
-      console.log('[StudyPlanGenerator] Module Distribution:');
       const distributionWarnings: string[] = [];
       moduleDistribution.forEach((count, moduleName) => {
         const percentage = ((count / validatedSessions.length) * 100).toFixed(1);
-        console.log(`  - ${moduleName}: ${count} Sessions (${percentage}%)`);
         
         // Calculate minimum expected percentage: at least 50% of a fair share
         // (fair share = 100% / number of modules)
@@ -889,8 +871,6 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
           description: `Einige Module haben zu wenige oder keine Sessions. Siehe Browser-Konsole für Details. Bitte Plan neu generieren.`,
           duration: 8000
         });
-      } else {
-        console.log('[StudyPlanGenerator] ✅ Module distribution validated - all modules represented');
       }
       
       setStudySessions(validatedSessions);

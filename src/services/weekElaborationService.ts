@@ -69,9 +69,6 @@ export async function generateWeekElaboration(
   request: WeekElaborationRequest,
   apiKey: string
 ): Promise<WeekElaborationResponse> {
-  console.log('[WeekElaboration] Generating execution guides for week:', request.week);
-  console.log('[WeekElaboration] Sessions count:', request.sessions.length);
-  
   // Validate input
   if (!apiKey || apiKey.trim().length === 0) {
     throw new Error('API-Key fehlt');
@@ -97,8 +94,6 @@ export async function generateWeekElaboration(
     .replace('{sessionsJson}', sessionsJson)
     .replace('{moduleDataJson}', moduleDataJson);
   
-  console.log('[WeekElaboration] Sending request to LLM...');
-  
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -115,8 +110,6 @@ export async function generateWeekElaboration(
     if (!content) {
       throw new Error('Keine Antwort von der KI erhalten');
     }
-    
-    console.log('[WeekElaboration] Received response from LLM');
     
     // Parse and validate response
     const parsedResponse = JSON.parse(content);
@@ -156,8 +149,6 @@ export async function generateWeekElaboration(
         generatedAt: now
       });
     }
-    
-    console.log(`[WeekElaboration] Validated ${validatedGuides.length}/${parsedResponse.executionGuides.length} guides`);
     
     if (validatedGuides.length === 0) {
       throw new Error('Keine gültigen Execution Guides generiert');
