@@ -77,8 +77,6 @@ const TimeBlock = memo(({
 });
 
 export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: WeeklyScheduleProps) {
-  console.log('[WeeklySchedule] Component rendered with', timeSlots.length, 'time slots');
-  
   /**
    * Create a Set of selected slot keys for O(1) lookup instead of O(n) iteration
    * This dramatically improves performance when checking if a block is selected
@@ -116,8 +114,6 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
    * Optimized to use functional updates to avoid dependency on timeSlots
    */
   const toggleBlock = useCallback((day: string, startTime: string, endTime: string) => {
-    console.log('[WeeklySchedule] Toggling block:', { day, startTime, endTime });
-    
     setTimeSlots(currentSlots => {
       const existingSlot = currentSlots.find(
         slot => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
@@ -126,7 +122,6 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
       if (existingSlot) {
         // Remove block
         const newSlots = currentSlots.filter(slot => slot.id !== existingSlot.id);
-        console.log('[WeeklySchedule] Removing block. New count:', newSlots.length);
         return newSlots;
       } else {
         // Add block
@@ -137,7 +132,6 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
           endTime,
         };
         const newSlots = [...currentSlots, newSlot];
-        console.log('[WeeklySchedule] Adding block. New count:', newSlots.length);
         return newSlots;
       }
     });
@@ -148,8 +142,6 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
    * Optimized with functional update
    */
   const selectAllForDay = useCallback((day: string) => {
-    console.log('[WeeklySchedule] Selecting all blocks for', day);
-    
     setTimeSlots(currentSlots => {
       // Remove all blocks for this day first
       const filtered = currentSlots.filter(slot => slot.day !== day);
@@ -163,17 +155,13 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
       }));
       
       const finalSlots = [...filtered, ...newSlots];
-      console.log('[WeeklySchedule] New total slots:', finalSlots.length);
       return finalSlots;
     });
   }, [setTimeSlots]);
 
   const clearAllForDay = useCallback((day: string) => {
-    console.log('[WeeklySchedule] Clearing all blocks for', day);
-    
     setTimeSlots(currentSlots => {
       const newSlots = currentSlots.filter(slot => slot.day !== day);
-      console.log('[WeeklySchedule] New total slots:', newSlots.length);
       return newSlots;
     });
   }, [setTimeSlots]);
@@ -188,22 +176,17 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
   }, [dayBlockCounts]);
 
   const handleNextClick = useCallback(() => {
-    console.log('[WeeklySchedule] Next button clicked. TimeSlots:', timeSlots.length);
     if (timeSlots.length === 0) {
-      console.warn('[WeeklySchedule] Cannot proceed - no time slots selected');
       return;
     }
-    console.log('[WeeklySchedule] Calling onNext handler');
     onNext();
   }, [timeSlots.length, onNext]);
 
   const handleBackClick = useCallback(() => {
-    console.log('[WeeklySchedule] Back button clicked');
     onBack();
   }, [onBack]);
 
   const selectWeekdayMornings = useCallback(() => {
-    console.log('[WeeklySchedule] Selecting weekday mornings preset');
     const weekdayMornings: TimeSlot[] = [];
     ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
       weekdayMornings.push({
@@ -213,12 +196,10 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
         endTime: '10:00',
       });
     });
-    console.log('[WeeklySchedule] Setting', weekdayMornings.length, 'slots');
     setTimeSlots(weekdayMornings);
   }, [setTimeSlots]);
 
   const selectAfternoons = useCallback(() => {
-    console.log('[WeeklySchedule] Selecting afternoons preset');
     const afternoons: TimeSlot[] = [];
     ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].forEach(day => {
       afternoons.push({
@@ -234,12 +215,10 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
         endTime: '18:00',
       });
     });
-    console.log('[WeeklySchedule] Setting', afternoons.length, 'slots');
     setTimeSlots(afternoons);
   }, [setTimeSlots]);
 
   const selectWeekendIntensive = useCallback(() => {
-    console.log('[WeeklySchedule] Selecting weekend intensive preset');
     const weekends: TimeSlot[] = [];
     ['Samstag', 'Sonntag'].forEach(day => {
       TIME_BLOCKS.slice(2, 7).forEach(block => {
@@ -251,7 +230,6 @@ export function WeeklySchedule({ onNext, onBack, timeSlots, setTimeSlots }: Week
         });
       });
     });
-    console.log('[WeeklySchedule] Setting', weekends.length, 'slots');
     setTimeSlots(weekends);
   }, [setTimeSlots]);
 

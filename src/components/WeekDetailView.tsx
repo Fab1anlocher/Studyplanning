@@ -138,7 +138,6 @@ export function WeekDetailView({
   const isElaborated = sessions.every(s => hasExecutionGuide(s.id));
 
   const handleElaborate = async () => {
-    console.log('[WeekDetailView] Starting elaboration...');
     setIsElaborating(true);
     setElaborationError(null);
 

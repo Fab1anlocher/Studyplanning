@@ -120,9 +120,6 @@ export function ModuleLearningGuide({ module, studySessions, onBack, apiKey }: M
         try {
           const parsed = JSON.parse(content);
           
-          // Debug: Log what we received from the AI
-          console.log('AI Response parsed:', JSON.stringify(parsed, null, 2));
-          
           // Try to normalize field names (AI sometimes uses slightly different names)
           const normalized: any = {
             moduleFocus: parsed.moduleFocus || parsed.module_focus || parsed.ModuleFocus || {},

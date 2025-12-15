@@ -80,15 +80,11 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
         try {
           // 1. PDF-Text extrahieren
           setProcessingStatus(`Lese PDF ${processedFiles}/${totalFiles}: ${file.name}...`);
-          console.log('Starte Extraktion für:', file.name);
           const pdfText = await extractTextFromPDF(file);
-          console.log('PDF Text extrahiert:', pdfText.substring(0, 200));
 
           // 2. KI-Analyse durchführen
           setProcessingStatus(`KI analysiert ${processedFiles}/${totalFiles}: ${file.name}...`);
-          console.log('Starte KI-Analyse...');
           const result = await processModulePDF(file, pdfText, apiKey);
-          console.log('KI-Analyse abgeschlossen:', result.moduleData);
 
           // 3. Modul-Objekt erstellen
           const newModule: Module = {
@@ -112,7 +108,6 @@ export function ModuleUpload({ onNext, onBack, modules, setModules, apiKey = '' 
 
           newModules.push(newModule);
           fileNames.push(file.name);
-          console.log('Modul erfolgreich erstellt:', newModule.name);
         } catch (fileError) {
           console.error(`Detaillierter Fehler beim Verarbeiten von ${file.name}:`, fileError);
           const errorMessage = fileError instanceof Error ? fileError.message : 'Unbekannter Fehler';
