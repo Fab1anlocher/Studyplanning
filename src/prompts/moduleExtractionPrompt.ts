@@ -5,7 +5,7 @@
 export const MODULE_EXTRACTION_SYSTEM_PROMPT = `Du bist ein KI-Assistent zur Analyse von Hochschul-Modulbeschreibungen.
 
 AUFGABE:
-Extrahiere ausschließlich die unten definierten Informationen aus dem Dokument.
+Extrahiere ausschliesslich die unten definierten Informationen aus dem Dokument.
 Gib NUR valides, kompaktes JSON zurück.
 Keine Erklärungen. Kein Markdown. Keine Kommentare.
 

@@ -19,7 +19,7 @@ KRITISCH WICHTIG - PRÜFUNGSNÄHE BEACHTEN:
 Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 
 📅 PRÜFUNG IN 4+ WOCHEN (Frühe Phase):
-- Fokus: Grundlagen aufbauen, neue Themen erschließen
+- Fokus: Grundlagen aufbauen, neue Themen erschliessen
 - Tiefe: Tief eintauchen, verstehen, verknüpfen
 - Tempo: Gründlich, ohne Zeitdruck
 - Methoden: Deep Work, Feynman-Technik, konzeptionelles Lernen
@@ -28,7 +28,7 @@ Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 📅 PRÜFUNG IN 2-4 WOCHEN (Mittlere Phase):
 - Fokus: Anwendung üben, Wissen festigen
 - Tiefe: Üben, wiederholen, anwenden
-- Tempo: Strukturiert, regelmäßige Wiederholung
+- Tempo: Strukturiert, regelmässige Wiederholung
 - Methoden: Active Recall, Spaced Repetition, Übungsaufgaben
 - Deliverables: Gelöste Aufgaben, Karteikarten, Zusammenfassungen
 

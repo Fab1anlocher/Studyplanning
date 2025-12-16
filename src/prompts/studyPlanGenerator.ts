@@ -59,7 +59,7 @@ Erstelle einen VOLLSTÄNDIGEN Lernplan für das GESAMTE Semester, der:
    - Berechne für JEDES Modul seine "verfügbaren Wochen" (von Start bis lastDeadline)
    - Verteile Sessions proportional zu ECTS und verfügbaren Wochen
    - **NIEMALS** ein Modul vernachlässigen oder vergessen!
-   - Wechsle regelmäßig zwischen Modulen (Interleaving)
+   - Wechsle regelmässig zwischen Modulen (Interleaving)
    - Wenn ein Modul-Deadline erreicht ist: Verteile dessen Slots auf verbleibende Module
    
    Beispiel mit 3 Modulen:
@@ -71,7 +71,7 @@ Erstelle einen VOLLSTÄNDIGEN Lernplan für das GESAMTE Semester, der:
 2. ZEITVERTEILUNG:
    - Berücksichtige ECTS-Punkte (höhere ECTS = mehr Zeit)
    - Berücksichtige Assessment-Gewichtungen
-   - Verteile Workload gleichmäßig über verfügbare Wochen
+   - Verteile Workload gleichmässig über verfügbare Wochen
    - Wechsle zwischen Modulen für bessere Retention (CRITICAL!)
 
 3. PRÜFUNGSVORBEREITUNG:
@@ -122,7 +122,7 @@ Zusätzlich planSummary:
   }
 }
 
-Gib ausschließlich valides JSON zurück.`;
+Gib ausschliesslich valides JSON zurück.`;
 
 /**
  * User Prompt Template for Study Plan Generator
@@ -147,7 +147,7 @@ Erstelle einen VOLLSTÄNDIGEN Semesterplan mit ALLEN Sessions von Anfang bis End
 5. Nach Ablauf eines Modul-Deadlines: Verteile die freien Zeitslots auf andere Module
 6. Der Student hat diese Zeit reserviert - NUTZE ALLE SLOTS!
 7. **ALLE MODULE MÜSSEN SESSIONS BEKOMMEN** - nicht nur ein Modul!
-8. Wechsle regelmäßig zwischen den Modulen (z.B. Modul A → Modul B → Modul C → Modul A...)
+8. Wechsle regelmässig zwischen den Modulen (z.B. Modul A → Modul B → Modul C → Modul A...)
 
 📝 EINFACHHEIT IST KEY:
 - Halte topic ALLGEMEIN (z.B. "Grundlagen", "Vertiefung", "Wiederholung")
