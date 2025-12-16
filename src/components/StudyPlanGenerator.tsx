@@ -76,79 +76,6 @@ const WEEK_DAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 // Default month for calendar view (will be adjusted based on generated plan)
 const DEFAULT_MONTH = '2024-12-01';
 
-// Learning Method Explanations
-const LEARNING_METHODS: Record<string, { title: string; description: string; tips: string[] }> = {
-  'Deep Work': {
-    title: 'Deep Work',
-    description: 'Konzentrierte, ablenkungsfreie Arbeit an kognitiv anspruchsvollen Aufgaben. Optimal für komplexe Projekte und kreative Arbeit.',
-    tips: [
-      'Schalte alle Benachrichtigungen aus',
-      'Plane mindestens 2-4 Stunden ein',
-      'Arbeite in einem ruhigen Umfeld',
-      'Mache nur alle 90 Minuten eine Pause'
-    ]
-  },
-  'Pomodoro': {
-    title: 'Pomodoro-Technik',
-    description: 'Arbeite in 25-Minuten-Intervallen mit 5-Minuten-Pausen. Nach 4 Pomodoros eine längere Pause (15-30 Min).',
-    tips: [
-      '25 Minuten fokussierte Arbeit',
-      '5 Minuten Pause (aufstehen, bewegen)',
-      'Nach 4 Zyklen: 15-30 Min Pause',
-      'Ideal für Programmierung und Übungen'
-    ]
-  },
-  'Spaced Repetition': {
-    title: 'Spaced Repetition',
-    description: 'Wiederhole Lernstoff in zunehmend größeren Abständen für optimales Langzeitgedächtnis.',
-    tips: [
-      'Erste Wiederholung: nach 1 Tag',
-      'Zweite Wiederholung: nach 3 Tagen',
-      'Dritte Wiederholung: nach 7 Tagen',
-      'Nutze Karteikarten oder Apps wie Anki'
-    ]
-  },
-  'Active Recall': {
-    title: 'Active Recall',
-    description: 'Aktives Abrufen von Wissen ohne Hilfsmittel. Teste dich selbst statt passiv zu lesen.',
-    tips: [
-      'Schließe Bücher und Notizen',
-      'Schreibe alles auf, was du weißt',
-      'Vergleiche mit dem Original',
-      'Konzentriere dich auf Lücken'
-    ]
-  },
-  'Feynman Technik': {
-    title: 'Feynman-Technik',
-    description: 'Erkläre ein Konzept in einfachen Worten, als würdest du es einem Kind beibringen.',
-    tips: [
-      'Wähle ein Konzept',
-      'Erkläre es in einfachen Worten',
-      'Identifiziere Wissenslücken',
-      'Vereinfache und verwende Analogien'
-    ]
-  },
-  'Interleaving': {
-    title: 'Interleaving',
-    description: 'Wechsle zwischen verschiedenen Themen/Modulen statt alles auf einmal zu lernen.',
-    tips: [
-      'Mische verschiedene Themen',
-      'Verbessert Problemlösungsfähigkeit',
-      'Verhindert Langeweile',
-      'Fördert Transfer von Wissen'
-    ]
-  },
-  'Practice Testing': {
-    title: 'Practice Testing',
-    description: 'Übe mit echten oder simulierten Prüfungen. Die beste Vorbereitung auf Prüfungen.',
-    tips: [
-      'Nutze alte Prüfungen',
-      'Simuliere Prüfungsbedingungen',
-      'Zeitlimit einhalten',
-      'Analysiere Fehler gründlich'
-    ]
-  }
-};
 
 /**
  * Get appropriate icon based on module name, topic, and description
@@ -956,21 +883,21 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
               examsToShow.push(
                 <div
                   key={`exam-${module.id || module.name}-${assessmentIdx}`}
-                  className="bg-gradient-to-br from-red-500 to-red-700 p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+                  className="bg-gradient-to-br from-red-500 to-red-700 p-3 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow cursor-pointer hover:scale-105 transform"
                   title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format || ''})`}
                 >
-                  <div className="flex items-center gap-1.5 mb-1.5 text-white">
-                    <Calendar className="size-3.5 flex-shrink-0 text-white" />
+                  <div className="flex items-center gap-1.5 mb-1 text-white">
+                    <Calendar className="size-4 flex-shrink-0 text-white" />
                     <span className="font-bold text-xs tracking-wide uppercase text-white">Prüfung</span>
                   </div>
-                  <div className="font-bold text-sm mb-1 leading-tight text-white">
+                  <div className="font-bold text-xs leading-tight text-white line-clamp-2">
                     {module.name}
                   </div>
-                  <div className="text-xs font-medium text-white">
+                  <div className="text-xs font-medium text-white mt-1 line-clamp-1">
                     {assessment.type}
                   </div>
                   {assessment.format && (
-                    <div className="text-xs mt-1 bg-red-900/30 px-1.5 py-0.5 rounded inline-block text-white">
+                    <div className="text-xs mt-1 bg-red-900/40 px-2 py-1 rounded inline-block text-white font-medium">
                       {assessment.format}
                     </div>
                   )}
@@ -997,14 +924,14 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
           examsToShow.push(
             <div
               key={`exam-${module.id || module.name}-main`}
-              className="bg-gradient-to-br from-red-500 to-red-700 p-2.5 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow"
+              className="bg-gradient-to-br from-red-500 to-red-700 p-3 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow cursor-pointer hover:scale-105 transform"
               title={`Prüfung: ${module.name}`}
             >
-              <div className="flex items-center gap-1.5 mb-1.5 text-white">
-                <Calendar className="size-3.5 flex-shrink-0 text-white" />
+              <div className="flex items-center gap-1.5 mb-1 text-white">
+                <Calendar className="size-4 flex-shrink-0 text-white" />
                 <span className="font-bold text-xs tracking-wide uppercase text-white">Prüfung</span>
               </div>
-              <div className="font-bold text-sm leading-tight text-white">
+              <div className="font-bold text-xs leading-tight text-white line-clamp-2">
                 {module.name}
               </div>
             </div>
@@ -1311,12 +1238,17 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                         const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                         const isToday = date.toDateString() === new Date('2024-12-09').toDateString();
                     
+                    const examsForDate = renderExamsForDate(date);
+                    const hasExam = examsForDate.length > 0;
+
                     return (
                       <div
                         key={dayIndex}
                         className={`min-h-[120px] p-2 rounded-lg border-2 transition-all ${
                           isToday 
                             ? 'bg-blue-50 border-blue-400' 
+                            : hasExam
+                              ? 'bg-red-50 border-red-300'
                             : isCurrentMonth 
                               ? 'bg-white border-gray-200 hover:border-gray-300' 
                               : 'bg-gray-50 border-gray-100'
@@ -1331,9 +1263,9 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                         }`}>
                           {date.getDate()}
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           {/* Prüfungstermine - rendered via helper function */}
-                          {renderExamsForDate(date)}
+                          {examsForDate}
                           
                           {/* Lernsessions */}
                           {sessions.map((session, idx) => {
