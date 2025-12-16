@@ -883,24 +883,10 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
               examsToShow.push(
                 <div
                   key={`exam-${module.id || module.name}-${assessmentIdx}`}
-                  className="bg-gradient-to-br from-red-500 to-red-700 p-3 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow cursor-pointer hover:scale-105 transform"
+                  className="text-xs font-medium text-gray-900 cursor-pointer hover:text-gray-600"
                   title={`Prüfung: ${assessment.type} - ${module.name} (${assessment.format || ''})`}
                 >
-                  <div className="flex items-center gap-1.5 mb-1 text-white">
-                    <Calendar className="size-4 flex-shrink-0 text-white" />
-                    <span className="font-bold text-xs tracking-wide uppercase text-white">Prüfung</span>
-                  </div>
-                  <div className="font-bold text-xs leading-tight text-white line-clamp-2">
-                    {module.name}
-                  </div>
-                  <div className="text-xs font-medium text-white mt-1 line-clamp-1">
-                    {assessment.type}
-                  </div>
-                  {assessment.format && (
-                    <div className="text-xs mt-1 bg-red-900/40 px-2 py-1 rounded inline-block text-white font-medium">
-                      {assessment.format}
-                    </div>
-                  )}
+                  📝 {module.name} {assessment.format && `(${assessment.format})`}
                 </div>
               );
             }
@@ -908,8 +894,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         });
       }
       
-      // Check old examDate field (backward compatibility - only if no assessments matched this date)
-      // This ensures we don't duplicate exams if assessments are available
+      // Check old examDate field (backward compatibility)
       const hasAssessmentOnThisDate = module.assessments?.some((a: any) => {
         if (a.deadline) {
           const aDate = new Date(a.deadline);
@@ -924,16 +909,10 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
           examsToShow.push(
             <div
               key={`exam-${module.id || module.name}-main`}
-              className="bg-gradient-to-br from-red-500 to-red-700 p-3 rounded-lg shadow-lg border-2 border-red-900 hover:shadow-xl transition-shadow cursor-pointer hover:scale-105 transform"
+              className="text-xs font-medium text-gray-900 cursor-pointer hover:text-gray-600"
               title={`Prüfung: ${module.name}`}
             >
-              <div className="flex items-center gap-1.5 mb-1 text-white">
-                <Calendar className="size-4 flex-shrink-0 text-white" />
-                <span className="font-bold text-xs tracking-wide uppercase text-white">Prüfung</span>
-              </div>
-              <div className="font-bold text-xs leading-tight text-white line-clamp-2">
-                {module.name}
-              </div>
+              📝 {module.name}
             </div>
           );
         }
@@ -1238,17 +1217,12 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                         const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                         const isToday = date.toDateString() === new Date('2024-12-09').toDateString();
                     
-                    const examsForDate = renderExamsForDate(date);
-                    const hasExam = examsForDate.length > 0;
-
                     return (
                       <div
                         key={dayIndex}
                         className={`min-h-[120px] p-2 rounded-lg border-2 transition-all ${
                           isToday 
                             ? 'bg-blue-50 border-blue-400' 
-                            : hasExam
-                              ? 'bg-red-50 border-red-300'
                             : isCurrentMonth 
                               ? 'bg-white border-gray-200 hover:border-gray-300' 
                               : 'bg-gray-50 border-gray-100'
@@ -1263,9 +1237,9 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                         }`}>
                           {date.getDate()}
                         </div>
-                        <div className="space-y-1.5">
+                        <div className="space-y-1">
                           {/* Prüfungstermine - rendered via helper function */}
-                          {examsForDate}
+                          {renderExamsForDate(date)}
                           
                           {/* Lernsessions */}
                           {sessions.map((session, idx) => {
