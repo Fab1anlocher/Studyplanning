@@ -162,7 +162,7 @@ export async function extractModuleDataWithAI(
     }
     
     // REVIEW: Critical validation - assessment weights must sum to 100% (using largest remainder method)
-    const totalWeight = parsedData.assessments.reduce((sum, a) => sum + (a.weight || 0), 0);
+    const totalWeight = parsedData.assessments.reduce((sum: number, a: any) => sum + (a.weight || 0), 0);
     if (Math.abs(totalWeight - 100) > ASSESSMENT_WEIGHT_TOLERANCE) {
       console.warn(`Assessment-Gewichtungen addieren sich zu ${totalWeight}% statt 100%. Normalisiere mit Largest Remainder Method...`);
       parsedData.assessments = normalizeAssessmentWeights(parsedData.assessments);

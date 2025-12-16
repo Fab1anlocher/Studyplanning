@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import OpenAI from 'openai';
-import { STUDY_PLAN_SYSTEM_PROMPT, STUDY_PLAN_USER_PROMPT } from '../prompts/studyPlanGenerator';
+import { STUDY_PLAN_PROMPT } from '../prompts/studyPlanGenerator';
 import { ExecutionGuide } from '../types/executionGuide';
 import { generateWeekElaboration, getSessionsForWeek, formatDateISO } from '../services/weekElaborationService';
 import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide } from '../services/executionGuideStorage';
@@ -27,6 +27,80 @@ const ALLOWED_LEARNING_METHODS = [
   'Interleaving',
   'Practice Testing'
 ] as const;
+
+// Learning methods with detailed info for modal display
+const LEARNING_METHODS: Record<string, { title: string; description: string; tips: string[] }> = {
+  'Spaced Repetition': {
+    title: 'Spaced Repetition',
+    description: 'Wiederhole Inhalte in zeitlichen Abständen: 1 Tag, 3 Tage, 7 Tage, 14 Tage. Dies optimiert das Langzeitgedächtnis.',
+    tips: [
+      'Nutze Flashcard-Apps wie Anki oder Quizlet',
+      'Wiederhole regelmäßig kurz nach dem Lernen',
+      'Erhöhe die Abstände zwischen den Wiederholungen',
+      'Fokussiere auf schwierige Themen'
+    ]
+  },
+  'Active Recall': {
+    title: 'Active Recall',
+    description: 'Teste dich selbst ohne zu schauen, bevor du die Lösung anschaust. Das aktiviert dein Gedächtnis aktiv.',
+    tips: [
+      'Erstelle Fragen zu wichtigen Konzepten',
+      'Versuche, sie auswendig zu beantworten',
+      'Nutze alte Prüfungen zum Üben',
+      'Erkläre Konzepte ohne auf Notizen zu schauen'
+    ]
+  },
+  'Deep Work': {
+    title: 'Deep Work',
+    description: 'Konzentriertes, unterbrechungsfreies Arbeiten für 2-4 Stunden an komplexen Aufgaben.',
+    tips: [
+      'Schalte Handy und Benachrichtigungen aus',
+      'Arbeite an einem ruhigen Ort',
+      'Setze dir klare Ziele für die Session',
+      'Mache Pausen nach 90 Minuten intensiver Arbeit'
+    ]
+  },
+  'Pomodoro': {
+    title: 'Pomodoro Technik',
+    description: '25 Minuten fokussiertes Arbeiten, 5 Minuten Pause. Nach 4 Zyklen: 30 Minuten Pause.',
+    tips: [
+      'Nutze einen Timer (pomodoro-timer.com)',
+      'Arbeite nur an EINER Aufgabe pro Pomodoro',
+      'Dokumentiere, wie viele Pomodoros du brauchst',
+      'Passe die Länge an, wenn nötig (15-45 Min)'
+    ]
+  },
+  'Feynman Technik': {
+    title: 'Feynman Technik',
+    description: 'Erkläre komplexe Konzepte in einfachen Worten. So erkennst du Lücken in deinem Verständnis.',
+    tips: [
+      'Schreib eine Erklärung auf wie für einen 5-Jährigen',
+      'Finde Lücken in deiner Erklärung',
+      'Schau dir die Originalquellen an und wiederhole',
+      'Versuche, deine Erklärung immer kürzer zu machen'
+    ]
+  },
+  'Interleaving': {
+    title: 'Interleaving',
+    description: 'Lerne mehrere ähnliche Themen durcheinander statt hintereinander. Das verbessert die Differenzierung.',
+    tips: [
+      'Wechsle zwischen verschiedenen Themen/Modulen',
+      'Mische leichte und schwierige Aufgaben',
+      'Nutze Übungsaufgaben aus verschiedenen Themen',
+      'Das fühlt sich schwerer an - ist aber effektiver!'
+    ]
+  },
+  'Practice Testing': {
+    title: 'Practice Testing',
+    description: 'Löse Übungsaufgaben und alte Prüfungen. Testen ist einer der besten Wege zum Lernen.',
+    tips: [
+      'Löse Aufgaben ohne Hilfsmittel zuerst',
+      'Vergleiche mit Lösungen und lerne aus Fehlern',
+      'Wiederhole schwierige Aufgaben',
+      'Nutze reale Prüfungsformat und Zeitlimits'
+    ]
+  }
+};
 
 const TIME_FORMAT_REGEX = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
 const MAX_DAILY_STUDY_MINUTES = 8 * 60; // 8 hours
@@ -218,7 +292,7 @@ const exportToExcel = (sessions: StudySession[], modules: any[]) => {
   
   // Sort and display by week
   Array.from(sessionsByWeek.entries())
-    .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+    .sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime())
     .forEach(([week, weeklySessions]) => {
       const weekHours = weeklySessions.reduce((sum, s) => {
         const startTime = parseInt(s.startTime.split(':')[0]);
@@ -421,18 +495,18 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
         }))
       };
       
-      // Import system prompt from separate file for easy editing
-      const systemPrompt = STUDY_PLAN_SYSTEM_PROMPT
-        .replace(/{startDate}/g, startDate.toISOString().split('T')[0])
-        .replace(/{lastExamDate}/g, lastExamDate.toISOString().split('T')[0])
-        .replace(/{weeksBetween}/g, calculateWeeksBetweenDates(startDate, lastExamDate).toString())
+      // Use unified consolidated prompt
+      const weeksBetween = calculateWeeksBetweenDates(startDate, lastExamDate);
+      const minSessions = weeksBetween * actualTimeSlots.length;
+      
+      // Prepare unified prompt with all variable replacements
+      const unifiedPrompt = STUDY_PLAN_PROMPT
+        .replace(/{planningData}/g, JSON.stringify(planningData, null, 2))
+        .replace(/{weeksBetween}/g, weeksBetween.toString())
         .replace(/{totalSlotsPerWeek}/g, actualTimeSlots.length.toString())
-        .replace(/{minSessions}/g, Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length).toString())
-        .replace(/{maxSessions}/g, Math.min(200, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length * 2).toString())
-        .replace(/{allowedMethods}/g, ALLOWED_LEARNING_METHODS.map(m => `"${m}"`).join(', '));
+        .replace(/{minSessions}/g, minSessions.toString());
       
       /* Old inline prompt - now moved to src/prompts/studyPlanGenerator.ts
-      const oldSystemPrompt = `Du bist ein Elite-Lerncoach und KI-Spezialist für personalisierte Lernplanung mit tiefem Verständnis von:
 - Lernpsychologie & kognitiven Neurowissenschaften
 - Evidenzbasierten Lernstrategien (Spaced Repetition, Retrieval Practice, Interleaving)
 - Zeitmanagement & Flow-Zuständen
@@ -648,24 +722,12 @@ Gib zurück:
 □ JSON ist valide und vollständig
 
 Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
-      // END OF OLD INLINE PROMPT - This is now kept as a comment for reference
-      // The actual prompt is loaded from src/prompts/studyPlanGenerator.ts
       */
 
-      const weeksBetween = calculateWeeksBetweenDates(startDate, lastExamDate);
-      const minSessions = weeksBetween * actualTimeSlots.length;
-      
-      const userPrompt = STUDY_PLAN_USER_PROMPT
-        .replace('{planningData}', JSON.stringify(planningData, null, 2))
-        .replace('{weeksBetween}', weeksBetween.toString())
-        .replace('{totalSlotsPerWeek}', actualTimeSlots.length.toString())
-        .replace('{minSessions}', minSessions.toString());
-      
       const response = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
+          { role: 'user', content: unifiedPrompt }
         ],
         temperature: 0.8, // Higher creativity for personalization
         response_format: { type: 'json_object' },
@@ -1503,7 +1565,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Tipps zur Umsetzung:</h4>
                   <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
-                    {LEARNING_METHODS[showMethodInfo].tips.map((tip, idx) => (
+                    {LEARNING_METHODS[showMethodInfo].tips.map((tip: string, idx: number) => (
                       <li key={idx}>{tip}</li>
                     ))}
                   </ul>

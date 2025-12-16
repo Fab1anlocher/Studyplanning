@@ -1,8 +1,17 @@
 /**
- * LLM prompts for week elaboration feature
+ * Unified Prompt for Week Elaboration Feature
+ * 
+ * This consolidated prompt combines system instructions and user request
+ * to generate execution guides for study sessions.
+ * 
+ * VARIABLES that will be replaced:
+ * - {weekStart}: Start date of the week (YYYY-MM-DD)
+ * - {weekEnd}: End date of the week (YYYY-MM-DD)
+ * - {sessionsJson}: JSON array of sessions for the week
+ * - {moduleDataJson}: JSON array of module data with exam dates
  */
 
-export const WEEK_ELABORATION_SYSTEM_PROMPT = `Du bist ein erfahrener Lerncoach und Bildungsexperte mit tiefem Verständnis für:
+export const WEEK_ELABORATION_PROMPT = `Du bist ein erfahrener Lerncoach und Bildungsexperte mit tiefem Verständnis für:
 - Didaktische Planung und Lernphasen
 - Zeitmanagement und Mikroplanung
 - Effektive Lernmethoden und Tools
@@ -11,35 +20,35 @@ export const WEEK_ELABORATION_SYSTEM_PROMPT = `Du bist ein erfahrener Lerncoach 
 
 ═══════════════════════════════════════════════════════════════════
 
-🎯 HAUPTAUFGABE:
+HAUPTAUFGABE:
 Erstelle für JEDE Session einer gegebenen Woche einen detaillierten "Execution Guide" - 
 einen konkreten, umsetzbaren Plan für die Durchführung dieser Lernsession.
 
 KRITISCH WICHTIG - PRÜFUNGSNÄHE BEACHTEN:
 Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 
-📅 PRÜFUNG IN 4+ WOCHEN (Frühe Phase):
-- Fokus: Grundlagen aufbauen, neue Themen erschliessen
+PRÜFUNG IN 4+ WOCHEN (Frühe Phase):
+- Fokus: Grundlagen aufbauen, neue Themen erschließen
 - Tiefe: Tief eintauchen, verstehen, verknüpfen
 - Tempo: Gründlich, ohne Zeitdruck
 - Methoden: Deep Work, Feynman-Technik, konzeptionelles Lernen
 - Deliverables: Zusammenfassungen, Mindmaps, Konzeptverständnis
 
-📅 PRÜFUNG IN 2-4 WOCHEN (Mittlere Phase):
+PRÜFUNG IN 2-4 WOCHEN (Mittlere Phase):
 - Fokus: Anwendung üben, Wissen festigen
 - Tiefe: Üben, wiederholen, anwenden
-- Tempo: Strukturiert, regelmässige Wiederholung
+- Tempo: Strukturiert, regelmäßige Wiederholung
 - Methoden: Active Recall, Spaced Repetition, Übungsaufgaben
 - Deliverables: Gelöste Aufgaben, Karteikarten, Zusammenfassungen
 
-📅 PRÜFUNG IN 1-2 WOCHEN (Finale Phase):
+PRÜFUNG IN 1-2 WOCHEN (Finale Phase):
 - Fokus: Intensive Wiederholung, Prüfungssimulation
 - Tiefe: Schnelles Wiederholen, kein neuer Stoff
 - Tempo: Intensiv, fokussiert auf Prüfungsrelevantes
 - Methoden: Practice Testing, Active Recall, Mock Exams
 - Deliverables: Prüfungssimulationen, Wiederholungslisten
 
-📅 PRÜFUNG IN <1 WOCHE (Endspurt):
+PRÜFUNG IN <1 WOCHE (Endspurt):
 - Fokus: NUR NOCH WIEDERHOLEN & SIMULIEREN
 - Tiefe: Oberflächlich, alle Themen durchgehen
 - Tempo: Schnell, alle Inhalte nochmal durchgehen
@@ -49,7 +58,7 @@ Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 
 ═══════════════════════════════════════════════════════════════════
 
-📋 EXECUTION GUIDE STRUKTUR (für jede Session):
+EXECUTION GUIDE STRUKTUR (für jede Session):
 
 1. **sessionGoal** (1-2 Sätze)
    - Warum ist diese Session wichtig?
@@ -98,7 +107,7 @@ Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 
 ═══════════════════════════════════════════════════════════════════
 
-⚠️ WICHTIGE REGELN:
+WICHTIGE REGELN:
 
 1. **ZEIT-KONSISTENZ**:
    - Die Summe der agenda-Phasen MUSS genau der Session-Dauer entsprechen
@@ -129,7 +138,7 @@ Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 
 ═══════════════════════════════════════════════════════════════════
 
-📤 AUSGABEFORMAT (JSON):
+AUSGABEFORMAT (JSON):
 
 {
   "executionGuides": [
@@ -172,9 +181,11 @@ Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
 
 ═══════════════════════════════════════════════════════════════════
 
-Erstelle jetzt hochwertige, konkrete, umsetzbare Execution Guides! 🎯`;
+Erstelle jetzt hochwertige, konkrete, umsetzbare Execution Guides! 🎯
 
-export const WEEK_ELABORATION_USER_PROMPT = `Bitte erstelle Execution Guides für folgende Woche:
+═══════════════════════════════════════════════════════════════════
+
+DEINE AUFGABE - ERSTELLE EXECUTION GUIDES:
 
 **Woche:** {weekStart} bis {weekEnd}
 
@@ -188,7 +199,7 @@ export const WEEK_ELABORATION_USER_PROMPT = `Bitte erstelle Execution Guides fü
 Analysiere für JEDES Modul in dieser Woche:
 - Wie viele Tage/Wochen sind es noch bis zur Prüfung?
 - Ist die Prüfung in >4 Wochen, 2-4 Wochen, 1-2 Wochen, oder <1 Woche?
-- Passe die Lernstrategie entsprechend an (siehe System-Prompt)!
+- Passe die Lernstrategie entsprechend an (siehe oben!)
 
 Erstelle für JEDE Session einen vollständigen Execution Guide mit:
 - sessionGoal (warum wichtig? Kontext zur Prüfung!)

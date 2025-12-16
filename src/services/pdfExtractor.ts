@@ -6,10 +6,13 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // PDF.js Worker konfigurieren - erforderlich für Performance und Stabilität
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+// Use dynamic import for worker to support Vite bundling
+if (typeof window !== 'undefined') {
+  const workerUrl = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.toString();
+}
 
 // REVIEW: Constants for validation
 const MAX_FILE_SIZE_MB = 50;

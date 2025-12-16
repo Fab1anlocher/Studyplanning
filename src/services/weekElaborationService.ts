@@ -10,8 +10,7 @@ import {
   AgendaItem
 } from '../types/executionGuide';
 import { 
-  WEEK_ELABORATION_SYSTEM_PROMPT, 
-  WEEK_ELABORATION_USER_PROMPT 
+  WEEK_ELABORATION_PROMPT 
 } from '../prompts/weekElaborationPrompt';
 
 /**
@@ -84,22 +83,21 @@ export async function generateWeekElaboration(
     dangerouslyAllowBrowser: true
   });
   
-  // Prepare user prompt
+  // Prepare unified prompt with all variable replacements
   const sessionsJson = JSON.stringify(request.sessions, null, 2);
   const moduleDataJson = JSON.stringify(request.moduleData, null, 2);
   
-  const userPrompt = WEEK_ELABORATION_USER_PROMPT
-    .replace('{weekStart}', request.week.startDate)
-    .replace('{weekEnd}', request.week.endDate)
-    .replace('{sessionsJson}', sessionsJson)
-    .replace('{moduleDataJson}', moduleDataJson);
+  const unifiedPrompt = WEEK_ELABORATION_PROMPT
+    .replace(/{weekStart}/g, request.week.startDate)
+    .replace(/{weekEnd}/g, request.week.endDate)
+    .replace(/{sessionsJson}/g, sessionsJson)
+    .replace(/{moduleDataJson}/g, moduleDataJson);
   
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: WEEK_ELABORATION_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt }
+        { role: 'user', content: unifiedPrompt }
       ],
       temperature: 0.7,
       response_format: { type: 'json_object' },
