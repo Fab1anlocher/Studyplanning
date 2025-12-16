@@ -133,54 +133,147 @@ const getSessionIcon = (moduleName: string, topic: string, description: string) 
   return BookOpen;
 };
 
-// Excel export helper
+// Excel export helper - generates structured study plan
 const exportToExcel = (sessions: StudySession[], modules: any[]) => {
-  // Create CSV content (Excel-compatible)
-  let csvContent = 'data:text/csv;charset=utf-8,';
+  // Create HTML content for better formatting (can be opened in Excel)
+  let htmlContent = `
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #1f2937; margin-bottom: 5px; }
+          h2 { color: #374151; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px; }
+          h3 { color: #4b5563; margin-top: 15px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          th { background-color: #f97316; color: white; padding: 12px; text-align: left; font-weight: bold; }
+          td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+          tr:nth-child(even) { background-color: #fef3c7; }
+          .header { background-color: #fef3c7; padding: 15px; border-left: 4px solid #f97316; margin-bottom: 20px; }
+          .summary { background-color: #f0f9ff; padding: 10px; border-left: 4px solid #3b82f6; margin: 10px 0; }
+          .exam { background-color: #fee2e2; padding: 8px; border-left: 4px solid #ef4444; }
+          .week-summary { background-color: #f3f4f6; padding: 10px; margin: 10px 0; }
+        </style>
+      </head>
+      <body>
+        <h1>📚 Mein Lernplan</h1>
+        <p><strong>Erstellt:</strong> ${new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}</p>
+        
+        <h2>📋 Modul-Übersicht</h2>
+        <table>
+          <tr>
+            <th>Modul</th>
+            <th>ECTS</th>
+            <th>Workload</th>
+            <th>Prüfung</th>
+            <th>Anzahl Sessions</th>
+          </tr>
+  `;
   
-  // Headers
-  csvContent += 'Datum,Wochentag,Startzeit,Endzeit,Modul,Thema,Beschreibung,Lernmethode,Inhalte,Kompetenzen,Lerntipps\n';
-  
-  // Rows
-  sessions.forEach(session => {
-    const date = new Date(session.date);
-    const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' });
-    const formattedDate = date.toLocaleDateString('de-DE');
-    const contentTopics = (session.contentTopics || []).join('; ');
-    const competencies = (session.competencies || []).join('; ');
-    const studyTips = session.studyTips || '';
+  // Add modules summary
+  modules.forEach(module => {
+    const moduleSessions = sessions.filter(s => s.module === module.name).length;
+    const exam = module.assessments?.[0];
+    const examDate = exam?.deadline ? new Date(exam.deadline).toLocaleDateString('de-DE') : '-';
     
-    // Escape CSV fields
-    const escapeCSV = (str: string) => {
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-    
-    csvContent += [
-      formattedDate,
-      weekday,
-      session.startTime,
-      session.endTime,
-      escapeCSV(session.module),
-      escapeCSV(session.topic),
-      escapeCSV(session.description),
-      escapeCSV(session.learningMethod || ''),
-      escapeCSV(contentTopics),
-      escapeCSV(competencies),
-      escapeCSV(studyTips)
-    ].join(',') + '\n';
+    htmlContent += `
+      <tr>
+        <td><strong>${module.name}</strong></td>
+        <td>${module.ects}</td>
+        <td>${module.workload}h</td>
+        <td><span class="exam">${exam?.type || '-'}<br/>${examDate}</span></td>
+        <td>${moduleSessions}</td>
+      </tr>
+    `;
   });
   
+  htmlContent += `
+        </table>
+        
+        <h2>📅 Detaillierter Lernplan</h2>
+        <table>
+          <tr>
+            <th>Datum</th>
+            <th>Zeit</th>
+            <th>Modul</th>
+            <th>Thema</th>
+            <th>Lernmethode</th>
+            <th>Dauer</th>
+          </tr>
+  `;
+  
+  // Add sessions grouped by week
+  const sessionsByWeek = new Map<string, StudySession[]>();
+  sessions.forEach(session => {
+    const date = new Date(session.date);
+    const weekStart = new Date(date);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay() + (weekStart.getDay() === 0 ? -6 : 1));
+    const weekKey = weekStart.toLocaleDateString('de-DE');
+    
+    if (!sessionsByWeek.has(weekKey)) {
+      sessionsByWeek.set(weekKey, []);
+    }
+    sessionsByWeek.get(weekKey)!.push(session);
+  });
+  
+  // Sort and display by week
+  Array.from(sessionsByWeek.entries())
+    .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+    .forEach(([week, weeklySessions]) => {
+      const weekHours = weeklySessions.reduce((sum, s) => {
+        const startTime = parseInt(s.startTime.split(':')[0]);
+        const endTime = parseInt(s.endTime.split(':')[0]);
+        return sum + (endTime - startTime);
+      }, 0);
+      
+      htmlContent += `<tr style="background-color: #f9fafb;"><td colspan="6"><strong>Woche vom ${week}</strong> - ${weeklySessions.length} Sessions (${weekHours}h)</td></tr>`;
+      
+      weeklySessions.forEach(session => {
+        const date = new Date(session.date);
+        const dateStr = date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+        const duration = parseInt(session.endTime.split(':')[0]) - parseInt(session.startTime.split(':')[0]);
+        
+        htmlContent += `
+          <tr>
+            <td>${dateStr}</td>
+            <td>${session.startTime} - ${session.endTime}</td>
+            <td>${session.module}</td>
+            <td>${session.topic}</td>
+            <td>${session.learningMethod || '-'}</td>
+            <td>${duration}h</td>
+          </tr>
+        `;
+      });
+    });
+  
+  htmlContent += `
+        </table>
+        
+        <h2>📊 Zusammenfassung</h2>
+        <div class="summary">
+          <strong>Gesamte Sessions:</strong> ${sessions.length}<br/>
+          <strong>Gesamte Lernstunden:</strong> ${sessions.reduce((sum, s) => {
+            const duration = parseInt(s.endTime.split(':')[0]) - parseInt(s.startTime.split(':')[0]);
+            return sum + duration;
+          }, 0)}h<br/>
+          <strong>Module:</strong> ${modules.length}<br/>
+          <strong>Zeitraum:</strong> ${sessions.length > 0 ? `${new Date(sessions[0].date).toLocaleDateString('de-DE')} - ${new Date(sessions[sessions.length - 1].date).toLocaleDateString('de-DE')}` : '-'}
+        </div>
+        
+        <p style="margin-top: 40px; color: #6b7280; font-size: 12px;">Generiert mit StudyPlanning</p>
+      </body>
+    </html>
+  `;
+  
   // Create download link
-  const encodedUri = encodeURI(csvContent);
+  const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `Lernplan_${new Date().toISOString().split('T')[0]}.csv`);
+  link.href = URL.createObjectURL(blob);
+  link.setAttribute('download', `Lernplan_${new Date().toISOString().split('T')[0]}.xls`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
 };
 
 export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApiKey = '' }: StudyPlanGeneratorProps) {

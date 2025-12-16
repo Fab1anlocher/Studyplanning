@@ -211,7 +211,7 @@ export function WeekDetailView({
             <p className="text-gray-600">
               {sessions.length} Sessions geplant
               {isElaborated && (
-                <Badge className="ml-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+                <Badge className="ml-2 bg-orange-600 hover:bg-orange-700 text-white font-bold">
                   <CheckCircle2 className="size-3 mr-1" />
                   Ausgearbeitet
                 </Badge>
@@ -224,7 +224,7 @@ export function WeekDetailView({
               size="lg"
               onClick={handleElaborate}
               disabled={isElaborating}
-              className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
             >
               {isElaborating ? (
                 <>
@@ -243,7 +243,7 @@ export function WeekDetailView({
 
         {/* Info Alert */}
         {!isElaborated && (
-          <Alert className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
+          <Alert className="bg-orange-50 border-orange-300 border-2">
             <Lightbulb className="size-4 text-orange-600" />
             <AlertDescription>
               <strong>Woche ausarbeiten:</strong> Erstelle detaillierte Execution Guides für alle 
@@ -286,7 +286,7 @@ export function WeekDetailView({
                 return (
                   <Card 
                     key={session.id} 
-                    className={`border-2 ${hasGuide ? 'border-orange-200 bg-orange-50/30' : 'border-gray-200'}`}
+                    className={`border-2 ${hasGuide ? 'border-orange-500 bg-orange-50' : 'border-gray-200'}`}
                   >
                     <CardContent className="pt-6">
                       {/* Session Header */}
@@ -303,7 +303,7 @@ export function WeekDetailView({
                             <div className="flex items-center gap-2 flex-shrink-0">
                               <Badge>{session.module}</Badge>
                               {hasGuide && (
-                                <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+                                <Badge className="bg-orange-600 hover:bg-orange-700 text-white font-bold">
                                   <Zap className="size-3 mr-1" />
                                   Ausgearbeitet
                                 </Badge>
