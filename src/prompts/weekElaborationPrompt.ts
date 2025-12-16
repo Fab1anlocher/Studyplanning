@@ -25,7 +25,7 @@ Erstelle für JEDE Session einer gegebenen Woche einen detaillierten "Execution 
 einen konkreten, umsetzbaren Plan für die Durchführung dieser Lernsession.
 
 KRITISCH WICHTIG - PRÜFUNGSNÄHE BEACHTEN:
-Die Strategie hängt STARK davon ab, wie nah die Prüfung ist!
+Die Strategie hängt STARK davon ab, wie nah die Prüfung/Assesment ist!
 
 PRÜFUNG IN 4+ WOCHEN (Frühe Phase):
 - Fokus: Grundlagen aufbauen, neue Themen erschließen
@@ -37,9 +37,9 @@ PRÜFUNG IN 4+ WOCHEN (Frühe Phase):
 PRÜFUNG IN 2-4 WOCHEN (Mittlere Phase):
 - Fokus: Anwendung üben, Wissen festigen
 - Tiefe: Üben, wiederholen, anwenden
-- Tempo: Strukturiert, regelmäßige Wiederholung
+- Tempo: Strukturiert, regelmässige Wiederholung
 - Methoden: Active Recall, Spaced Repetition, Übungsaufgaben
-- Deliverables: Gelöste Aufgaben, Karteikarten, Zusammenfassungen
+- Deliverables: Gelöste Aufgaben, Karteikarten, Zusammenfassungen usw
 
 PRÜFUNG IN 1-2 WOCHEN (Finale Phase):
 - Fokus: Intensive Wiederholung, Prüfungssimulation
@@ -68,7 +68,7 @@ EXECUTION GUIDE STRUKTUR (für jede Session):
 2. **agenda** (Array von Phasen mit Zeitangaben)
    - Didaktischer Ablauf passend zur Session-Dauer
    - MUSS die gesamte verfügbare Zeit abdecken
-   - Typische Struktur:
+   - Mögliche Struktur:
      * Warm-up (5-15 Min): Orientierung, Vorbereitung
      * Core Work (60-80% der Zeit): Hauptarbeit
      * Consolidation (10-20 Min): Zusammenfassung, Reflexion
@@ -76,7 +76,7 @@ EXECUTION GUIDE STRUKTUR (für jede Session):
 
 3. **methodIdeas** (2-4 konkrete Ansätze)
    - Spezifische Vorgehensweisen für diese Session
-   - Basierend auf dem learningMethod-Feld (falls vorhanden)
+   - Basierend auf dem learningMethod-Feld und Moduleinhalten (falls vorhanden)
    - KONKRET und ACTIONABLE (keine vagen Anweisungen)
    - Beispiele:
      * "Erstelle ein Mindmap mit allen Hauptkonzepten aus Kapitel 3"
@@ -143,7 +143,7 @@ AUSGABEFORMAT (JSON):
 {
   "executionGuides": [
     {
-      "sessionId": "session-id-from-input",
+      "sessionId": "1",
       "sessionGoal": "Klare Zielbeschreibung...",
       "agenda": [
         {
@@ -173,7 +173,7 @@ AUSGABEFORMAT (JSON):
     }
   ],
   "summary": {
-    "totalSessions": 5,
+    "totalSessions": 1,
     "weekStartDate": "2024-12-09",
     "weekEndDate": "2024-12-15"
   }
@@ -216,5 +216,13 @@ Achte darauf:
 4. Sei SEHR KONKRET - keine vagen Anweisungen
 5. Achte auf realistische Arbeitspensum für die verfügbare Zeit
 6. Wenn Prüfung nah ist: WENIGER neuer Stoff, MEHR Wiederholung & Übung
+
+MUSS-ANWEISUNG ZUM JSON-FORMAT:
+- Nutze GENAU die selbe "id" oder "sessionId" aus der Input-Session
+- Wenn Input-Session {"id": "5", ...} hat, dann Output {"sessionId": "5", ...}
+- Alle duration-Werte MÜSSEN Nummern sein (nicht Strings!)
+- Die Summe aller duration-Werte in der agenda MUSS der Session-Dauer entsprechen
+- methodIdeas und tools MÜSSEN non-empty Arrays sein
+- Jedes Array-Element muss ein einfacher String sein
 
 Gib das Ergebnis als valides JSON zurück.`;

@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import OpenAI from 'openai';
-import { STUDY_PLAN_PROMPT } from '../prompts/studyPlanGenerator';
+import { STUDY_PLAN_DISTRIBUTION_PROMPT } from '../prompts/studyPlanDistribution';
+import { STUDY_PLAN_SCHEDULING_PROMPT } from '../prompts/studyPlanScheduling';
 import { ExecutionGuide } from '../types/executionGuide';
 import { generateWeekElaboration, getSessionsForWeek, formatDateISO } from '../services/weekElaborationService';
 import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide } from '../services/executionGuideStorage';
@@ -121,6 +122,47 @@ function calculateWeeksBetweenDates(startDate: Date, endDate: Date): number {
   }
   const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
   return Math.ceil(daysDiff / 7);
+}
+
+/**
+ * Expands available time slots to concrete dates
+ * Frontend does what PROMPT 1 used to do - simple date expansion
+ */
+function expandSlotsToDateRange(
+  startDate: Date,
+  endDate: Date,
+  timeSlots: Array<{day: string, startTime: string, endTime: string}>
+): Array<{date: string, startTime: string, endTime: string, module: null}> {
+  const slots: Array<{date: string, startTime: string, endTime: string, module: null}> = [];
+  const dayMap: {[key: string]: number} = {
+    'Montag': 1, 'Dienstag': 2, 'Mittwoch': 3, 'Donnerstag': 4,
+    'Freitag': 5, 'Samstag': 6, 'Sonntag': 0
+  };
+  
+  // Iterate through each day from startDate to endDate
+  const current = new Date(startDate);
+  while (current <= endDate) {
+    const currentDayNumber = current.getDay();
+    const dayName = Object.entries(dayMap).find(([_, num]) => num === currentDayNumber)?.[0];
+    
+    if (dayName) {
+      // Find all time slots for this day
+      const daySlots = timeSlots.filter(slot => slot.day === dayName);
+      daySlots.forEach(slot => {
+        slots.push({
+          date: current.toISOString().split('T')[0],
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          module: null
+        });
+      });
+    }
+    
+    // Move to next day
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return slots;
 }
 
 interface StudySession {
@@ -455,6 +497,13 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
         dangerouslyAllowBrowser: true
       });
       
+      // STEP 0: Frontend Expansion - Convert weekly slots to concrete dates
+      // This used to be the job of PROMPT 1, now it's a simple JavaScript operation
+      toast.loading('Erweitere Zeitfenster zu konkreten Daten...');
+      
+      const expandedSlots = expandSlotsToDateRange(startDate, lastExamDate, actualTimeSlots);
+      console.log(`[StudyPlanGenerator] Expanded slots from ${actualTimeSlots.length} weekly patterns to ${expandedSlots.length} concrete slots`);
+      
       // Prepare comprehensive data for AI
       // CRITICAL: Calculate lastDeadline for each module so AI knows when to stop scheduling
       const planningData = {
@@ -487,259 +536,73 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
               deadline: a.deadline
             }))
           };
-        }),
-        availableTimeSlots: actualTimeSlots.map(slot => ({
-          day: slot.day,
-          startTime: slot.startTime,
-          endTime: slot.endTime
-        }))
+        })
       };
       
-      // Use unified consolidated prompt
-      const weeksBetween = calculateWeeksBetweenDates(startDate, lastExamDate);
-      const minSessions = weeksBetween * actualTimeSlots.length;
+      // STEP 1: Distribution Prompt - Assign modules to pre-expanded slots
+      toast.loading('Schritt 1: Verteile Module auf Zeitfenster...');
       
-      // Prepare unified prompt with all variable replacements
-      const unifiedPrompt = STUDY_PLAN_PROMPT
-        .replace(/{planningData}/g, JSON.stringify(planningData, null, 2))
-        .replace(/{weeksBetween}/g, weeksBetween.toString())
-        .replace(/{totalSlotsPerWeek}/g, actualTimeSlots.length.toString())
-        .replace(/{minSessions}/g, minSessions.toString());
+      const distributionPrompt = STUDY_PLAN_DISTRIBUTION_PROMPT
+        .replace(/{slots}/g, JSON.stringify(expandedSlots, null, 2))
+        .replace(/{planningData}/g, JSON.stringify(planningData, null, 2));
       
-      /* Old inline prompt - now moved to src/prompts/studyPlanGenerator.ts
-- Lernpsychologie & kognitiven Neurowissenschaften
-- Evidenzbasierten Lernstrategien (Spaced Repetition, Retrieval Practice, Interleaving)
-- Zeitmanagement & Flow-Zuständen
-- Individuellen Lernmustern & Prüfungsoptimierung
-
-════════════════════════════════════════════════════════════════════
-
-🎯 HAUPTZIEL: Erstelle einen HOCHPERSONALISIERTEN, wissenschaftlich fundierten Lernplan, der:
-1. EXAKT die verfügbaren Zeitfenster des Users nutzt
-2. ALLE Prüfungstermine berücksichtigt und darauf hinarbeitet
-3. Die extrahierten Modulinhalte & Kompetenzen intelligent strukturiert
-4. Die optimale Lernmethode für jedes Thema/jede Kompetenz wählt
-5. Einen realistischen, motivierenden Weg zum Erfolg bietet
-6. KONKRETE, UMSETZBARE Aufgaben für jede Session definiert (keine vagen Anweisungen)
-
-════════════════════════════════════════════════════════════════════
-
-⚠️ KRITISCHE DEFENSIVE REGELN (STRIKT EINHALTEN):
-
-1. ZEITSLOT-VALIDIERUNG:
-   ✓ Nutze NUR die bereitgestellten availableTimeSlots (Tag, Startzeit, Endzeit)
-   ✓ KEINE erfundenen Zeitfenster außerhalb der angegebenen Slots
-   ✓ KEINE Sessions kürzer als 1 Stunde oder länger als 4 Stunden
-   ✓ Startzeit < Endzeit (logische Zeitreihenfolge)
-
-2. DATUM-VALIDIERUNG:
-   ✓ Alle Sessions MÜSSEN zwischen ${startDate.toISOString().split('T')[0]} und ${lastExamDate.toISOString().split('T')[0]} liegen
-   ✓ KEINE Daten in der Vergangenheit
-   ✓ KEINE Daten nach dem letzten Prüfungstermin
-   ✓ Datumsformat: YYYY-MM-DD (ISO 8601)
-
-3. MODUL-VALIDIERUNG:
-   ✓ Nutze NUR die bereitgestellten Modulnamen (exakte Schreibweise)
-   ✓ KEINE erfundenen Module oder Themen
-   ✓ Topics MÜSSEN aus dem "content"-Array stammen
-   ✓ Competencies MÜSSEN aus dem "competencies"-Array stammen
-
-4. SESSION-ANZAHL-VALIDIERUNG:
-   ✓ MINIMUM: ${Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length)} Sessions
-   ✓ MAXIMUM: ${Math.min(200, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length * 2)} Sessions
-   ✓ Falls zu wenig Slots: Nutze jeden Slot mehrfach pro Woche
-   ✓ Verteile Sessions gleichmäßig über den gesamten Zeitraum
-
-5. LERNMETHODEN-VALIDIERUNG:
-   ✓ Nutze NUR diese Methoden: "${ALLOWED_LEARNING_METHODS.join('", "')}"
-   ✓ KEINE erfundenen oder anderen Methodennamen
-   ✓ Methode muss zum Inhalt passen (siehe Framework unten)
-
-6. PAUSEN & KOGNITIVE LAST (PEDAGOGISCH VALIDIERT):
-   ✓ KEINE Sessions an mehr als 6 aufeinanderfolgenden Tagen
-   ✓ Mindestens 1 pausenfreier Tag pro Woche (idealerweise Sonntag)
-   ✓ Nicht mehr als 2 Sessions desselben Moduls an einem Tag
-   ✓ Wechsel zwischen Modulen für bessere Retention (Interleaving)
-   ✓ SESSION-DAUER: Minimum 1h, Maximum 4h (kognitive Kapazität)
-   ✓ DEEP WORK Sessions: Mindestens 2h, ideal 2-4h
-   ✓ Pomodoro Sessions: 2-3h (4-6 Zyklen à 25min + Pausen)
-   ✓ Spaced Repetition: 30-60min pro Session (Kurz und häufig)
-   ✓ TÄGLICHE LERNZEIT: Maximum 8h pro Tag (Überlastungsprävention)
-   ✓ WÖCHENTLICHE LERNZEIT: Maximum 40h pro Woche (Burnout-Prävention)
-
-7. PRÜFUNGSVORBEREITUNG:
-   ✓ Letzte 4 Wochen vor Prüfung: Mindestens 8-12 Stunden für erste Wiederholungsphase
-   ✓ Letzte 2 Wochen vor Prüfung: Mindestens 12-16 Stunden intensive Wiederholung, KEIN neuer Stoff
-   ✓ 1 Woche vor Prüfung: Daily Practice Testing + Active Recall, mindestens 10-15 Stunden
-   ✓ KEINE neuen Themen 3 Tage vor Prüfung
-
-════════════════════════════════════════════════════════════════════
-
-📋 ANALYSE-FRAMEWORK (befolge strikt):
-
-SCHRITT 1 - ZEITFENSTER-MAPPING (KRITISCH!):
-✓ Die availableTimeSlots sind WÖCHENTLICH wiederkehrend!
-✓ BEISPIEL: Wenn du erhältst:
-  - { day: "Montag", startTime: "17:00", endTime: "20:00" }
-  - { day: "Mittwoch", startTime: "14:00", endTime: "16:00" }
-  
-  Dann plane:
-  - JEDEN Montag von 17:00-20:00 vom startDate bis endDate
-  - JEDEN Mittwoch von 14:00-16:00 vom startDate bis endDate
-  
-✓ BERECHNUNG:
-  - Heute ist: ${startDate.toISOString().split('T')[0]}
-  - Letzte Prüfung: ${lastExamDate.toISOString().split('T')[0]}
-  - Das sind ca. ${calculateWeeksBetweenDates(startDate, lastExamDate)} Wochen
-  - Bei ${actualTimeSlots.length} Slots pro Woche = ${calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length} Sessions MINDESTENS!
-
-✓ WICHTIG: Gehe jeden Wochentag durch und plane ALLE Vorkommen bis zum Ende!
-
-SCHRITT 2 - WORKLOAD-VERTEILUNG:
-✓ Verteile Workload proportional zu ECTS (höhere ECTS = mehr Zeit)
-✓ Berücksichtige Assessment-Gewichtungen (60% Prüfung → mehr Prüfungsvorbereitung)
-✓ Plane 60% für initiales Lernen, 40% für Wiederholung & Prüfungsvorbereitung
-
-SCHRITT 3 - ASSESSMENT-ORIENTIERTE PLANUNG (KRITISCH!):
-✓ Analysiere JEDES Assessment (type, weight, format, deadline)
-✓ Für "Gruppenarbeit"-Assessments:
-  - Plane Sessions VOR dem Deadline für Teamarbeit/Koordination
-  - Description MUSS "Gruppenarbeit" erwähnen (z.B. "Treffe dich mit der Gruppe", "Arbeitet gemeinsam an...")
-  - Fokus auf Kollaboration, Arbeitsteilung, gemeinsame Deliverables
-✓ Für "Einzelarbeit"-Assessments:
-  - Plane individuelle Lern- und Übungssessions
-  - Description fokussiert auf eigenständiges Lernen
-✓ Sessions in den letzten 2 Wochen vor jedem Assessment-Deadline:
-  - MÜSSEN sich auf dieses spezifische Assessment vorbereiten
-  - Description MUSS konkret sagen: "Vorbereitung für [Assessment-Type] am [Deadline]"
-
-SCHRITT 4 - INHALTLICHE STRUKTURIERUNG:
-✓ Analysiere die Modulinhalte (content) und ordne sie nach Komplexität
-✓ Erstelle eine logische Lernsequenz: Grundlagen → Fortgeschritten → Anwendung
-✓ Verknüpfe Inhalte mit den zu entwickelnden Kompetenzen
-
-SCHRITT 5 - METHODENWAHL (evidenzbasiert):
-Wähle für JEDE Session die optimale Methode basierend auf:
-
-📊 **Spaced Repetition**
-- Wann: Faktenwissen, Definitionen, Vokabeln, 2+ Wochen vor Prüfung
-- Inhalte: Theoretische Grundlagen, Konzepte
-- Intervalle: Tag 1 → +2 Tage → +5 Tage → +10 Tage → +20 Tage
-
-🎯 **Active Recall / Practice Testing**
-- Wann: Mathematik, Formeln, Programmierung, 1-3 Wochen vor Prüfung
-- Inhalte: Anwendbares Wissen, Problemlösung
-- Methode: Übungsaufgaben, Past Papers, Selbsttests
-
-🔬 **Deep Work**
-- Wann: Semesterarbeiten, Projekte, komplexe Analysen
-- Dauer: Mind. 2-4 Stunden ununterbrochen
-- Inhalte: Projektarbeiten, Konzeptentwicklung, Schreiben
-
-⏱️ **Pomodoro Technique**
-- Wann: Programmieren, Übungen, repetitive Tasks
-- Struktur: 25min Fokus + 5min Pause, 4 Zyklen dann 30min Pause
-- Inhalte: Code schreiben, Debugging, strukturierte Aufgaben
-
-💡 **Feynman Technique**
-- Wann: Komplexe Konzepte verstehen & erklären können
-- Methode: Vereinfacht erklären, Lücken identifizieren
-- Inhalte: Theoretische Modelle, Frameworks, Zusammenhänge
-
-🔄 **Interleaving**
-- Wann: Mehrere ähnliche Module gleichzeitig
-- Methode: Zwischen Modulen/Themen wechseln in einer Session
-- Vorteil: Bessere Differenzierung, höhere Retention
-
-════════════════════════════════════════════════════════════════════
-
-🎓 PRÜFUNGSVORBEREITUNGS-STRATEGIE:
-
-🔴 **3-4 Wochen vor Prüfung**: Erste Wiederholungsphase
-- Überblick über alle Themen
-- Lücken identifizieren
-- Zusammenfassungen erstellen
-
-🟡 **2-3 Wochen vor Prüfung**: Intensive Wiederholung
-- Spaced Repetition intensivieren
-- Practice Testing mit alten Prüfungen
-- Schwache Bereiche fokussieren
-
-🟢 **1 Woche vor Prüfung**: Finale Vorbereitung
-- Daily Active Recall
-- Prüfungssimulationen
-- Nur noch Wiederholung, KEIN neuer Stoff
-
-════════════════════════════════════════════════════════════════════
-
-📤 AUSGABEFORMAT (JSON):
-
-Erstelle für JEDES verfügbare Zeitfenster eine optimierte Session:
-
-{
-  "date": "YYYY-MM-DD", // MUSS zwischen startDate und endDate liegen
-  "startTime": "HH:MM", // EXAKT aus timeSlots
-  "endTime": "HH:MM",   // EXAKT aus timeSlots
-  "module": "Exakter Modulname", // MUSS aus bereitgestellten Modulen stammen
-  "topic": "Spezifisches Thema aus 'content'",
-  "description": "SEHR KONKRET: Was GENAU tun (z.B. 'Erstelle 3 BPMN-Diagramme für verschiedene Geschäftsprozesse', 'Löse Aufgaben 1-5 aus Kapitel 3', 'Baue eine REST API mit Express.js'). 
-               WICHTIG: Bei Gruppenarbeit-Assessments MUSS erwähnt werden 'Gruppenarbeit: Treffe dich mit Team und...' oder 'Gemeinsam mit Gruppe an... arbeiten'.
-               Bei Einzelarbeit-Assessments: Fokus auf individuelle Aufgaben. 
-               In letzten 2 Wochen vor Assessment-Deadline: 'Vorbereitung für [Assessment-Type] am [Deadline]: [konkrete Aufgabe]'.
-               KEINE vagen Aussagen wie 'Übe das Thema' oder 'Lerne die Grundlagen'!",
-  "learningMethod": "Gewählte Methode aus obiger Liste",
-  "contentTopics": ["Topic 1 aus content", "Topic 2 aus content"], // NUR aus bereitgestellten content
-  "competencies": ["Kompetenz 1", "Kompetenz 2"], // NUR aus bereitgestellten competencies
-  "studyTips": "ACTIONABLE Tipps: Konkrete Schritte, Tools, Ressourcen (z.B. 'Nutze draw.io für Diagramme', 'Erstelle Flashcards mit Anki', 'Schaue Video X von Minute Y-Z'). 
-               Bei Gruppenarbeit: Koordinations-Tipps (z.B. 'Nutzt Trello für Aufgabenverwaltung', 'Erstellt ein gemeinsames Google Doc').
-               Bei bevorstehenden Prüfungen: Prüfungs-spezifische Tipps.
-               KEINE generischen Aussagen!"
-}
-
-Gib zurück:
-{
-  "sessions": [ ...Session-Array... ],
-  "planSummary": {
-    "totalSessions": Anzahl,
-    "totalHours": Gesamtstunden,
-    "moduleDistribution": { "Modul1": Stunden, "Modul2": Stunden },
-    "methodDistribution": { "Spaced Repetition": Anzahl, "Deep Work": Anzahl, ... }
-  }
-}
-
-════════════════════════════════════════════════════════════════════
-
-✅ FINAL VALIDATION CHECKLIST vor Ausgabe:
-□ Minimale Anzahl Sessions: ${Math.max(10, calculateWeeksBetweenDates(startDate, lastExamDate) * actualTimeSlots.length)}
-□ Alle Session-Daten zwischen ${startDate.toISOString().split('T')[0]} und ${lastExamDate.toISOString().split('T')[0]}
-□ Alle Zeitfenster stammen aus availableTimeSlots
-□ Alle Module-Namen existieren in bereitgestellten Modulen
-□ Alle Topics aus "content", alle Competencies aus "competencies"
-□ Alle Lernmethoden aus erlaubter Liste
-□ Mindestens 1 Pausentag pro Woche
-□ Letzte 2 Wochen vor Prüfung: Nur Wiederholung
-□ Keine Sessions > 4h Dauer
-□ JSON ist valide und vollständig
-
-Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
-      */
-
-      const response = await openai.chat.completions.create({
+     
+      // Call PROMPT 1: Distribution
+      const distributionResponse = await openai.chat.completions.create({
         model: 'gpt-4o',
         messages: [
-          { role: 'user', content: unifiedPrompt }
+          { role: 'user', content: distributionPrompt }
         ],
-        temperature: 0.8, // Higher creativity for personalization
+        temperature: 0.7,
         response_format: { type: 'json_object' },
-        max_tokens: 16000 // Increased for full semester plan
+        max_tokens: 8000
       });
       
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('Keine Antwort von der KI erhalten');
+      const distributionContent = distributionResponse.choices[0]?.message?.content;
+      if (!distributionContent) {
+        throw new Error('Keine Verteilung von der KI erhalten (Schritt 1)');
       }
       
-      const parsedResponse = JSON.parse(content);
+      const distribution = JSON.parse(distributionContent);
+      const sessionsWithModules = distribution.sessions || [];
+      
+      // DEBUG: Log what we received
+      console.log(`[StudyPlanGenerator] Distribution erhalten:`, distribution);
+      console.log(`[StudyPlanGenerator] Sessions gefunden: ${sessionsWithModules.length}`);
+      
+      if (!Array.isArray(sessionsWithModules) || sessionsWithModules.length === 0) {
+        throw new Error('Keine Sessions von der KI erhalten (Schritt 1). Distribution format: ' + Object.keys(distribution).join(', '));
+      }
+      
+      toast.dismiss();
+      toast.loading('Schritt 2: Füge Details hinzu...');
+      
+      // STEP 2: Scheduling Prompt - Add topic/description/learningMethod to sessions
+      // Input: Sessions with modules from PROMPT 1
+      // Output: Same sessions with enriched details (topic, description, learningMethod)
+      const schedulingPrompt = STUDY_PLAN_SCHEDULING_PROMPT
+        .replace(/{sessions}/g, JSON.stringify(sessionsWithModules, null, 2))
+        .replace(/{planningData}/g, JSON.stringify(planningData, null, 2));
+      
+      // Call PROMPT 2: Scheduling
+      const schedulingResponse = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'user', content: schedulingPrompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: 'json_object' },
+        max_tokens: 16000
+      });
+      
+      const schedulingContent = schedulingResponse.choices[0]?.message?.content;
+      if (!schedulingContent) {
+        throw new Error('Keine Sessions von der KI erhalten (Schritt 2)');
+      }
+      
+      toast.dismiss();
+      
+      const parsedResponse = JSON.parse(schedulingContent);
       const sessions: StudySession[] = parsedResponse.sessions || [];
       
       if (!Array.isArray(sessions) || sessions.length === 0) {
@@ -748,8 +611,9 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
       
       // REVIEW: Validate AI-generated sessions for critical defensive checks
       const validatedSessions: StudySession[] = [];
-      const minDate = new Date(startDate);
-      const maxDate = new Date(lastExamDate);
+      // FIXED: Parse ISO date strings correctly
+      const minDate = new Date(startDate.toISOString().split('T')[0] + 'T00:00:00Z');
+      const maxDate = new Date(lastExamDate.toISOString().split('T')[0] + 'T23:59:59Z');
       const moduleNames = new Set(actualModules.map(m => m.name));
       
       // Create map of module -> lastDeadline for efficient lookup
@@ -768,11 +632,21 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
         moduleDeadlines.set(module.name, lastDeadline);
       });
       
+      // DEBUG: Log validation boundaries
+      console.log(`[StudyPlanGenerator] Validierungsbereich: ${minDate.toISOString().split('T')[0]} bis ${maxDate.toISOString().split('T')[0]}`);
+      console.log(`[StudyPlanGenerator] Validiere ${sessions.length} Sessions...`);
+      
       sessions.forEach((session, index) => {
-        // Validate date range
-        const sessionDate = new Date(session.date);
-        if (sessionDate < minDate || sessionDate > maxDate) {
-          console.warn(`[StudyPlanGenerator] Session ${index + 1} hat ungültiges Datum: ${session.date}. Wird übersprungen.`);
+        // Parse session date properly
+        const sessionDate = new Date(session.date + 'T00:00:00Z');
+        
+        // Validate date range (with lenient comparison for timezone issues)
+        const sessionDateStr = session.date; // Keep as YYYY-MM-DD string for comparison
+        const minDateStr = minDate.toISOString().split('T')[0];
+        const maxDateStr = maxDate.toISOString().split('T')[0];
+        
+        if (sessionDateStr < minDateStr || sessionDateStr > maxDateStr) {
+          console.warn(`[StudyPlanGenerator] Session ${index + 1} hat Datum außerhalb des Bereichs: ${session.date} (Bereich: ${minDateStr} - ${maxDateStr}). Wird übersprungen.`);
           return;
         }
         
@@ -1307,15 +1181,29 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                     <ChevronUp className="size-4 -rotate-90" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
-                  {actualModules.slice(0, 3).map((module, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className={`size-3 rounded-full ${
-                        index === 0 ? 'bg-blue-500' : index === 1 ? 'bg-purple-500' : 'bg-pink-500'
-                      }`} />
-                      <span className="text-gray-600">{module.name}</span>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-4 text-sm flex-wrap">
+                  {actualModules.map((module, index) => {
+                    const colors = [
+                      'bg-blue-500',
+                      'bg-purple-500',
+                      'bg-pink-500',
+                      'bg-green-500',
+                      'bg-amber-500',
+                      'bg-red-500',
+                      'bg-indigo-500',
+                      'bg-cyan-500',
+                      'bg-lime-500',
+                      'bg-fuchsia-500',
+                      'bg-orange-500',
+                      'bg-sky-500'
+                    ];
+                    return (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className={`size-3 rounded-full ${colors[index % colors.length]}`} />
+                        <span className="text-gray-600">{module.name}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               
@@ -1375,7 +1263,7 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                     return (
                       <div
                         key={dayIndex}
-                        className={`min-h-[120px] p-2 rounded-lg border-2 transition-all ${
+                        className={`min-h-[120px] p-2 rounded-lg border-2 transition-all overflow-y-auto max-h-[300px] ${
                           isToday 
                             ? 'bg-blue-50 border-blue-400' 
                             : isCurrentMonth 
@@ -1399,7 +1287,20 @@ Erstelle jetzt den BESTEN, VOLLSTÄNDIGEN, VALIDIERTEN Lernplan! 🎯`;
                           {/* Lernsessions */}
                           {sessions.map((session, idx) => {
                             const moduleIndex = actualModules.findIndex(m => m.name === session.module);
-                            const colors = ['bg-blue-500', 'bg-purple-500', 'bg-pink-500'];
+                            const colors = [
+                              'bg-blue-500',
+                              'bg-purple-500',
+                              'bg-pink-500',
+                              'bg-green-500',
+                              'bg-amber-500',
+                              'bg-red-500',
+                              'bg-indigo-500',
+                              'bg-cyan-500',
+                              'bg-lime-500',
+                              'bg-fuchsia-500',
+                              'bg-orange-500',
+                              'bg-sky-500'
+                            ];
                             // Check if session is related to exam or group work
                             const isExamOrGroupWork = session.description?.toLowerCase().includes('gruppenarbeit') || 
                                                      session.description?.toLowerCase().includes('prüfung') ||

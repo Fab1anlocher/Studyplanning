@@ -34,19 +34,68 @@ export interface Session {
  * Validates an execution guide structure
  */
 function validateExecutionGuide(guide: any): guide is ExecutionGuide {
-  if (!guide.sessionId || typeof guide.sessionId !== 'string') return false;
-  if (!guide.sessionGoal || typeof guide.sessionGoal !== 'string') return false;
-  if (!Array.isArray(guide.agenda)) return false;
-  if (!Array.isArray(guide.methodIdeas)) return false;
-  if (!Array.isArray(guide.tools)) return false;
-  if (!guide.deliverable || typeof guide.deliverable !== 'string') return false;
-  if (!guide.readyCheck || typeof guide.readyCheck !== 'string') return false;
+  // Verify essential fields
+  if (!guide.sessionId) {
+    console.warn('Missing sessionId', guide);
+    return false;
+  }
+  if (typeof guide.sessionId !== 'string' && typeof guide.sessionId !== 'number') {
+    console.warn('sessionId is not string/number:', guide.sessionId);
+    return false;
+  }
   
-  // Validate agenda items
+  if (!guide.sessionGoal || typeof guide.sessionGoal !== 'string') {
+    console.warn('Missing or invalid sessionGoal', guide);
+    return false;
+  }
+  
+  if (!Array.isArray(guide.agenda) || guide.agenda.length === 0) {
+    console.warn('Missing or empty agenda', guide);
+    return false;
+  }
+  
+  if (!Array.isArray(guide.methodIdeas)) {
+    console.warn('Missing methodIdeas array', guide);
+    return false;
+  }
+  
+  if (!Array.isArray(guide.tools)) {
+    console.warn('Missing tools array', guide);
+    return false;
+  }
+  
+  if (!guide.deliverable || typeof guide.deliverable !== 'string') {
+    console.warn('Missing or invalid deliverable', guide);
+    return false;
+  }
+  
+  if (!guide.readyCheck || typeof guide.readyCheck !== 'string') {
+    console.warn('Missing or invalid readyCheck', guide);
+    return false;
+  }
+  
+  // Validate agenda items more leniently
   for (const item of guide.agenda) {
-    if (!item.phase || typeof item.phase !== 'string') return false;
-    if (typeof item.duration !== 'number') return false;
-    if (!item.description || typeof item.description !== 'string') return false;
+    if (!item.phase || typeof item.phase !== 'string') {
+      console.warn('Invalid agenda phase:', item);
+      return false;
+    }
+    // Duration can be number or string representation of number
+    const duration = typeof item.duration === 'number' 
+      ? item.duration 
+      : typeof item.duration === 'string' 
+        ? parseInt(item.duration, 10)
+        : NaN;
+    
+    if (isNaN(duration) || duration <= 0) {
+      console.warn('Invalid agenda duration:', item.duration);
+      return false;
+    }
+    
+    if (!item.description || typeof item.description !== 'string') {
+      console.warn('Invalid agenda description:', item);
+      return false;
+    }
   }
   
   return true;
@@ -101,7 +150,7 @@ export async function generateWeekElaboration(
       ],
       temperature: 0.7,
       response_format: { type: 'json_object' },
-      max_tokens: 8000
+      max_tokens: 16000
     });
     
     const content = response.choices[0]?.message?.content;
@@ -110,19 +159,30 @@ export async function generateWeekElaboration(
     }
     
     // Parse and validate response
-    const parsedResponse = JSON.parse(content);
+    let parsedResponse: any;
+    try {
+      parsedResponse = JSON.parse(content);
+    } catch (parseError) {
+      console.error('[WeekElaboration] JSON Parse Error:', parseError);
+      console.error('[WeekElaboration] Response content:', content.substring(0, 500));
+      throw new Error(`JSON Parse Error: ${parseError instanceof Error ? parseError.message : 'Unbekannter Fehler'}`);
+    }
     
     if (!parsedResponse.executionGuides || !Array.isArray(parsedResponse.executionGuides)) {
+      console.error('[WeekElaboration] Invalid response structure:', parsedResponse);
       throw new Error('Ungültige Antwort: executionGuides fehlt oder ist kein Array');
     }
+    
+    console.log(`[WeekElaboration] Received ${parsedResponse.executionGuides.length} guides from AI`);
     
     // Validate each execution guide
     const validatedGuides: ExecutionGuide[] = [];
     const now = new Date().toISOString();
     
-    for (const guide of parsedResponse.executionGuides) {
+    for (let idx = 0; idx < parsedResponse.executionGuides.length; idx++) {
+      const guide = parsedResponse.executionGuides[idx];
       if (!validateExecutionGuide(guide)) {
-        console.warn('[WeekElaboration] Ungültiger Execution Guide übersprungen:', guide);
+        console.warn(`[WeekElaboration] Guide ${idx + 1} ungültig, Details:`, JSON.stringify(guide).substring(0, 200));
         continue;
       }
       
@@ -144,6 +204,7 @@ export async function generateWeekElaboration(
       
       validatedGuides.push({
         ...guide,
+        sessionId: String(guide.sessionId),
         generatedAt: now
       });
     }
