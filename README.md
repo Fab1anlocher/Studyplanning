@@ -52,26 +52,8 @@ Die App öffnet sich automatisch unter `http://localhost:3000`. Gib deinen OpenA
 ## 🐛 Häufige Probleme
 
 - **API-Key ungültig**: Überprüfe, dass der Key mit `sk-` beginnt und dein OpenAI-Account Guthaben hat
-- **PDF nicht lesbar**: Verschlüsselte PDFs können nicht verarbeitet werden - exportiere die Datei ggf. neu
 - **Probleme beim Start**: Lösche `node_modules` und führe `npm install` erneut aus
 
-## 🔐 Datenschutz & Sicherheit
-
-- Dein API-Key wird nur lokal im Browser gespeichert
-- Alle Daten bleiben auf deinem Gerät
-- Keine Serverübertragung deiner Modulinformationen
-
-⚠️ **Hinweis**: Für den produktiven Einsatz sollte ein Backend-Service die OpenAI-Kommunikation übernehmen.
-
-## 💡 Tipps
-
-- **Detaillierte PDFs** führen zu besseren Extraktionsergebnissen
-- **Realistische Zeitplanung**: Wähle nur wirklich verfügbare Lernzeiten
-- **Kosten**: Ein Lernplan kostet ca. $0.15 mit GPT-4o-mini
-
-## 📞 Support
-
-Bei Fragen oder Problemen öffne ein [Issue auf GitHub](https://github.com/Fab1anlocher/Studyplanning/issues).
 
 ---
 
