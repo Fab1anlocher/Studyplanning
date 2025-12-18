@@ -992,7 +992,11 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
   }, []); // No dependencies - pure function
 
   const getSessionsForDate = useCallback((date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Fix: Use local date string to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
     return studySessions.filter(session => session.date === dateStr);
   }, [studySessions]); // Only recreate when studySessions changes
 
@@ -1289,32 +1293,45 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
                           
                           {/* Lernsessions */}
                           {sessions.map((session, idx) => {
-                            const moduleIndex = actualModules.findIndex(m => m.name === session.module);
-                            const colors = [
-                              'bg-blue-500',
-                              'bg-purple-500',
-                              'bg-pink-500',
-                              'bg-green-500',
-                              'bg-amber-500',
-                              'bg-red-500',
-                              'bg-indigo-500',
-                              'bg-cyan-500',
-                              'bg-lime-500',
-                              'bg-fuchsia-500',
-                              'bg-orange-500',
-                              'bg-sky-500'
+                            // More flexible module matching - case insensitive and trimmed
+                            const sessionModuleLower = session.module?.toLowerCase().trim() || '';
+                            const moduleIndex = actualModules.findIndex(m => 
+                              m.name?.toLowerCase().trim() === sessionModuleLower ||
+                              sessionModuleLower.includes(m.name?.toLowerCase().trim()) ||
+                              m.name?.toLowerCase().trim().includes(sessionModuleLower)
+                            );
+                            // Use inline styles to guarantee colors work (Tailwind purge issue)
+                            const colorValues = [
+                              '#3b82f6', // blue-500
+                              '#a855f7', // purple-500
+                              '#ec4899', // pink-500
+                              '#22c55e', // green-500
+                              '#f59e0b', // amber-500
+                              '#ef4444', // red-500
+                              '#6366f1', // indigo-500
+                              '#06b6d4', // cyan-500
+                              '#84cc16', // lime-500
+                              '#d946ef', // fuchsia-500
+                              '#f97316', // orange-500
+                              '#0ea5e9', // sky-500
                             ];
-                            // Check if session is related to exam or group work
-                            const isExamOrGroupWork = session.description?.toLowerCase().includes('gruppenarbeit') || 
-                                                     session.description?.toLowerCase().includes('prüfung') ||
-                                                     session.topic?.toLowerCase().includes('gruppenarbeit') ||
-                                                     session.topic?.toLowerCase().includes('prüfung');
-                            const bgColor = isExamOrGroupWork ? 'bg-red-600' : colors[moduleIndex % colors.length];
+                            
+                            // Calculate color index - use module name hash if module not in list
+                            let colorIndex: number;
+                            if (moduleIndex >= 0) {
+                              colorIndex = moduleIndex % colorValues.length;
+                            } else {
+                              // Hash the module name to get a consistent color
+                              const hash = (session.module || '').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                              colorIndex = hash % colorValues.length;
+                            }
+                            const bgColorStyle = colorValues[colorIndex];
                             
                             return (
                               <div
                                 key={session.id}
-                                className={`${bgColor} text-white p-2 rounded text-xs cursor-pointer hover:opacity-90 transition-opacity`}
+                                style={{ backgroundColor: bgColorStyle }}
+                                className="text-white p-2 rounded text-xs cursor-pointer hover:opacity-90 transition-opacity"
                                 onClick={() => setExpandedSession(session.id)}
                                 title={session.topic}
                               >
@@ -1373,7 +1390,7 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
                           <div className="flex items-center gap-2">
                             <Badge>{session.module}</Badge>
                             {hasExecutionGuide(session.id) && (
-                              <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+                              <Badge className="bg-orange-600 hover:bg-orange-700 text-white font-bold">
                                 <Zap className="size-3 mr-1" />
                                 Ausgearbeitet
                               </Badge>

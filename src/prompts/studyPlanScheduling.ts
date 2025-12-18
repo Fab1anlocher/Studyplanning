@@ -54,7 +54,7 @@ REGELN:
 
 LERNMETHODEN-LISTE (verwende NUR diese):
 - "Deep Work": Fokussierte 2-4h Sessions auf einen Thema
-- "Spaced Repetition": Regelmäßige Wiederholungen in Abständen
+- "Spaced Repetition": Regelmässige Wiederholungen in Abständen
 - "Active Recall": Selbsttests, Aufgaben lösen, Memory
 - "Practice Testing": Prüfungssimulation, alte Aufgaben
 - "Pomodoro": 25min Fokus + 5min Pause Zyklen
