@@ -31,72 +31,86 @@ export interface Session {
 }
 
 /**
- * Validates an execution guide structure
+ * Validates and normalizes an execution guide structure
+ * More lenient validation to handle AI response variations
  */
 function validateExecutionGuide(guide: any): guide is ExecutionGuide {
-  // Verify essential fields
-  if (!guide.sessionId) {
-    console.warn('Missing sessionId', guide);
+  console.log('[ValidateGuide] Checking guide:', JSON.stringify(guide).substring(0, 300));
+  
+  // Verify essential fields - allow sessionId or id
+  const sessionId = guide.sessionId || guide.id;
+  if (!sessionId) {
+    console.warn('[ValidateGuide] Missing sessionId/id', Object.keys(guide));
     return false;
   }
-  if (typeof guide.sessionId !== 'string' && typeof guide.sessionId !== 'number') {
-    console.warn('sessionId is not string/number:', guide.sessionId);
-    return false;
-  }
+  // Normalize sessionId to guide object
+  guide.sessionId = String(sessionId);
   
   if (!guide.sessionGoal || typeof guide.sessionGoal !== 'string') {
-    console.warn('Missing or invalid sessionGoal', guide);
+    console.warn('[ValidateGuide] Missing or invalid sessionGoal');
     return false;
   }
   
   if (!Array.isArray(guide.agenda) || guide.agenda.length === 0) {
-    console.warn('Missing or empty agenda', guide);
+    console.warn('[ValidateGuide] Missing or empty agenda');
     return false;
   }
   
-  if (!Array.isArray(guide.methodIdeas)) {
-    console.warn('Missing methodIdeas array', guide);
-    return false;
+  // Be lenient with methodIdeas - convert to array if needed
+  if (!guide.methodIdeas) {
+    guide.methodIdeas = [];
+  } else if (!Array.isArray(guide.methodIdeas)) {
+    guide.methodIdeas = [guide.methodIdeas];
   }
   
-  if (!Array.isArray(guide.tools)) {
-    console.warn('Missing tools array', guide);
-    return false;
+  // Be lenient with tools - convert to array if needed
+  if (!guide.tools) {
+    guide.tools = [];
+  } else if (!Array.isArray(guide.tools)) {
+    guide.tools = [guide.tools];
   }
   
   if (!guide.deliverable || typeof guide.deliverable !== 'string') {
-    console.warn('Missing or invalid deliverable', guide);
+    console.warn('[ValidateGuide] Missing or invalid deliverable');
     return false;
   }
   
-  if (!guide.readyCheck || typeof guide.readyCheck !== 'string') {
-    console.warn('Missing or invalid readyCheck', guide);
-    return false;
+  // Be lenient with readyCheck - set default if missing
+  if (!guide.readyCheck) {
+    guide.readyCheck = 'Session-Ziel erreicht und Deliverable erstellt.';
+  }
+  if (Array.isArray(guide.readyCheck)) {
+    guide.readyCheck = guide.readyCheck.join('; ');
   }
   
-  // Validate agenda items more leniently
-  for (const item of guide.agenda) {
+  // Validate and normalize agenda items
+  for (let i = 0; i < guide.agenda.length; i++) {
+    const item = guide.agenda[i];
     if (!item.phase || typeof item.phase !== 'string') {
-      console.warn('Invalid agenda phase:', item);
+      console.warn('[ValidateGuide] Invalid agenda phase at index', i);
       return false;
     }
     // Duration can be number or string representation of number
-    const duration = typeof item.duration === 'number' 
+    let duration = typeof item.duration === 'number' 
       ? item.duration 
       : typeof item.duration === 'string' 
         ? parseInt(item.duration, 10)
         : NaN;
     
     if (isNaN(duration) || duration <= 0) {
-      console.warn('Invalid agenda duration:', item.duration);
+      console.warn('[ValidateGuide] Invalid agenda duration at index', i, ':', item.duration);
       return false;
     }
+    // Normalize duration to number
+    item.duration = duration;
     
     if (!item.description || typeof item.description !== 'string') {
-      console.warn('Invalid agenda description:', item);
+      console.warn('[ValidateGuide] Invalid agenda description at index', i);
       return false;
     }
   }
+  
+  console.log('[ValidateGuide] Guide is valid!');
   
   return true;
 }

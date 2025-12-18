@@ -13,7 +13,7 @@ import { STUDY_PLAN_DISTRIBUTION_PROMPT } from '../prompts/studyPlanDistribution
 import { STUDY_PLAN_SCHEDULING_PROMPT } from '../prompts/studyPlanScheduling';
 import { ExecutionGuide } from '../types/executionGuide';
 import { generateWeekElaboration, getSessionsForWeek, formatDateISO } from '../services/weekElaborationService';
-import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide } from '../services/executionGuideStorage';
+import { saveExecutionGuides, getExecutionGuide, hasExecutionGuide, clearAllExecutionGuides } from '../services/executionGuideStorage';
 import { ExecutionGuideView } from './ExecutionGuideView';
 import { WeekDetailView } from './WeekDetailView';
 import { toast } from 'sonner';
@@ -419,6 +419,9 @@ export function StudyPlanGenerator({ onBack, modules, timeSlots, apiKey: propApi
 
   const generatePlan = useCallback(async () => {
     setIsGenerating(true);
+    
+    // Clear all old execution guides when generating a new plan
+    clearAllExecutionGuides();
     
     // REVIEW: Input validation - ensure we have modules and time slots
     if (!actualModules || actualModules.length === 0) {
